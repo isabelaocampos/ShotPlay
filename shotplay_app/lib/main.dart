@@ -1,37 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/config/app_router.dart';
-import 'core/config/app_theme.dart';
+import 'src/app.dart';
+import 'src/data/repositories/local_room_repository.dart';
+import 'src/data/repositories/supabase_room_repository.dart';
+import 'src/domain/repositories/room_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? '',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+  final dependencies = await _buildAppDependencies();
+  runApp(
+    ShotPlayApp(
+      roomRepository: dependencies.roomRepository,
+      currentAdminId: dependencies.currentAdminId,
+    ),
   );
-
-  runApp(const ShotPlayApp());
 }
 
-class ShotPlayApp extends StatelessWidget {
-  const ShotPlayApp({super.key});
+Future<_AppDependencies> _buildAppDependencies() async {
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  @override
-  Widget build(BuildContext context) {
-    return ScreenUtilInit(
-      designSize: const Size(390, 844),
-      minTextAdapt: true,
-      builder: (_, __) => MaterialApp.router(
-        title: 'ShotPlay',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark(),
-        routerConfig: appRouter,
-      ),
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+
+    return _AppDependencies(
+      roomRepository: SupabaseRoomRepository(Supabase.instance.client),
+      currentAdminId:
+          Supabase.instance.client.auth.currentUser?.id ?? 'demo-admin',
     );
   }
+
+  return const _AppDependencies(
+    roomRepository: LocalRoomRepository(),
+    currentAdminId: 'demo-admin',
+  );
+}
+
+class _AppDependencies {
+  const _AppDependencies({
+    required this.roomRepository,
+    required this.currentAdminId,
+  });
+
+  final RoomRepository roomRepository;
+  final String currentAdminId;
 }
