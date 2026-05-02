@@ -158,7 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         child: Text(
-                          p.role.toUpperCase(),
+                          p.role == 'player' ? 'JUGADOR' : p.role.toUpperCase(),
                           style: GoogleFonts.spaceGrotesk(
                             color: const Color(0xFF572000),
                             fontSize: 12,
@@ -181,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: ProfileStatCard(
-                              label: 'ESTADO ONLINE',
+                              label: 'ESTADO',
                               value: 'EN LÍNEA',
                               valueColor: Color(0xFF34D399),
                               valueFontSize: 16,
