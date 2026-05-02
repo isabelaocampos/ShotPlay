@@ -1,10 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthDataSource {
-  Future<AuthResponse> signup(String email, String password) async {
+  Future<AuthResponse> signup(
+    String email,
+    String password, {
+    required Map<String, dynamic> data,
+  }) async {
     final response = await Supabase.instance.client.auth.signUp(
       email: email,
       password: password,
+      data: data,
     );
     return response;
   }

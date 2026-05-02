@@ -11,8 +11,16 @@ class AuthRepoImpl extends AuthRepo {
   }
 
   @override
-  Future<String> signup(String email, String password) async {
-    final AuthResponse response = await _source.signup(email, password);
+  Future<String> signup(
+    String email,
+    String password, {
+    required Map<String, dynamic> data,
+  }) async {
+    final AuthResponse response = await _source.signup(
+      email,
+      password,
+      data: data,
+    );
     final user = response.user;
     if (user == null) {
       throw const AuthException('No se pudo crear la cuenta.');

@@ -40,6 +40,10 @@ class _SignupScreenState extends State<SignupScreen> {
     return '$mm / $dd / $yyyy';
   }
 
+  String _formatBirthdateIso(DateTime date) {
+    return date.toIso8601String();
+  }
+
   bool _isAdult(DateTime date) {
     final today = DateTime.now();
     final adultDate = DateTime(
@@ -170,11 +174,16 @@ class _SignupScreenState extends State<SignupScreen> {
                                           if (form == null || !form.validate()) {
                                             return;
                                           }
+                                          if (_birthdate == null) {
+                                            return;
+                                          }
                                           context.read<SignupBloc>().add(
                                                 SignupSubmitEvent(
                                                   username: usernameController.text,
                                                   email: emailController.text,
                                                   password: passController.text,
+                                                  birthdateIso:
+                                                      _formatBirthdateIso(_birthdate!),
                                                 ),
                                               );
                                         },

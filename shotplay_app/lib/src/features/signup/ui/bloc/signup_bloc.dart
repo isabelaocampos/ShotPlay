@@ -8,11 +8,13 @@ class SignupSubmitEvent extends SignupEvent {
   final String username;
   final String email;
   final String password;
+  final String birthdateIso;
 
   SignupSubmitEvent({
     required this.username,
     required this.email,
     required this.password,
+    required this.birthdateIso,
   });
 }
 
@@ -42,7 +44,12 @@ class SignupBloc extends Bloc<SignupEvent, SignupState> {
   ) async {
     emit(SignupLoadingState());
     try {
-      await _usecase.execute(event.username, event.email, event.password);
+      await _usecase.execute(
+        event.username,
+        event.email,
+        event.password,
+        event.birthdateIso,
+      );
       emit(SignupSuccessState());
     } catch (e) {
       emit(SignupFailState(message: _mapSignupError(e)));
