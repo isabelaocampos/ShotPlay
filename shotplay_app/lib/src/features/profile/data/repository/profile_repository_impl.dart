@@ -9,4 +9,10 @@ class ProfileRepositoryImpl extends ProfileRepository {
   Future<void> saveProfile(Profile profile) async {
     await _source.saveProfile(profile);
   }
+
+  @override
+  Future<Profile?> getProfile(String userId) async {
+    return _source.getProfile(userId);
+  }
 }
+
