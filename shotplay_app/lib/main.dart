@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shotplay_app/src/core/navigation/main_screen.dart';
+import 'package:shotplay_app/src/core/config/env.dart';
 import 'package:shotplay_app/src/features/auth/ui/screens/welcome_screen.dart';
 import 'package:shotplay_app/src/features/login/ui/bloc/login_bloc.dart';
 import 'package:shotplay_app/src/features/login/ui/screens/login_screen.dart';
 import 'package:shotplay_app/src/features/signup/ui/bloc/signup_bloc.dart';
 import 'package:shotplay_app/src/features/signup/ui/screens/signup_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-const String kSupabaseUrl = 'https://zpwpbqmhzdhtuvblznog.supabase.co';
-const String kSupabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpwd3BicW1oemRodHV2Ymx6bm9nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxODM3NjAsImV4cCI6MjA5Mjc1OTc2MH0.bYbFjLA3X4udwn70qmjibyLP8VOA0TdAl46XoXgLQUU';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
+
   await Supabase.initialize(
-    url: kSupabaseUrl,
-    anonKey: kSupabaseAnonKey,
+    url: Env.supabaseUrl,
+    anonKey: Env.supabaseAnonKey,
   );
 
   runApp(const App());
