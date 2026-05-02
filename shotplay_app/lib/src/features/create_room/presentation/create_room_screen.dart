@@ -90,6 +90,8 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                 const SizedBox(height: 18),
                 _MaxPlayersSection(
                   maxPlayers: controller.maxPlayers,
+                  minPlayers: controller.selectedGame.minPlayers,
+                  maxAllowed: controller.selectedGame.maxPlayers,
                   onChanged: controller.updateMaxPlayers,
                 ),
                 const SizedBox(height: 14),
@@ -154,7 +156,10 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: 1,
         onHomeTap: () {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.gameDetails);
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRoutes.gameCatalog,
+            (route) => false,
+          );
         },
         onGamesTap: () {},
         onSocialTap: () {},
@@ -233,56 +238,95 @@ class _ConfigHero extends StatelessWidget {
 }
 
 class _MaxPlayersSection extends StatelessWidget {
-  const _MaxPlayersSection({required this.maxPlayers, required this.onChanged});
+  const _MaxPlayersSection({
+    required this.maxPlayers,
+    required this.minPlayers,
+    required this.maxAllowed,
+    required this.onChanged,
+  });
 
   final int maxPlayers;
+  final int minPlayers;
+  final int maxAllowed;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final canDecrement = maxPlayers > minPlayers;
+    final canIncrement = maxPlayers < maxAllowed;
+
     return ConfigCard(
-      title: 'Máximo de jugadores',
-      child: Column(
+      title: 'Número de jugadores',
+      subtitle: 'Permitido: $minPlayers - $maxAllowed personas',
+      child: Row(
         children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(
-                'Elige el límite',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
+          _StepperButton(
+            icon: Icons.remove_rounded,
+            enabled: canDecrement,
+            onTap: () => onChanged(maxPlayers - 1),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                '$maxPlayers',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF01FFF),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$maxPlayers jugadores',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: List<int>.generate(9, (index) => index + 2)
-                .map(
-                  (value) => ChoiceChip(
-                    label: Text('$value'),
-                    selected: maxPlayers == value,
-                    onSelected: (_) => onChanged(value),
+          _StepperButton(
+            icon: Icons.add_rounded,
+            enabled: canIncrement,
+            onTap: () => onChanged(maxPlayers + 1),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF01FFF),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$maxAllowed Jugadores',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
-                )
-                .toList(),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StepperButton extends StatelessWidget {
+  const _StepperButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.4,
+      child: Material(
+        color: const Color(0xFFB427F5),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: enabled ? onTap : null,
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
       ),
     );
   }

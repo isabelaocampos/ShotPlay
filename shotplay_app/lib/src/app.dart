@@ -1,45 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'core/theme/app_theme.dart';
 import 'core/routing/app_routes.dart';
+import 'core/theme/app_theme.dart';
 import 'domain/entities/game_option.dart';
+import 'domain/entities/room_session.dart';
+import 'domain/repositories/game_repository.dart';
 import 'domain/repositories/room_repository.dart';
 import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
+import 'features/game_catalog/presentation/game_catalog_controller.dart';
+import 'features/game_catalog/presentation/game_catalog_screen.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
 import 'features/waiting_room/presentation/waiting_room_screen.dart';
-import 'domain/entities/room_session.dart';
 
 class ShotPlayApp extends StatelessWidget {
   const ShotPlayApp({
     super.key,
     required this.roomRepository,
+    required this.gameRepository,
     required this.currentAdminId,
   });
 
   final RoomRepository roomRepository;
+  final GameRepository gameRepository;
   final String currentAdminId;
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CreateRoomController(
-        roomRepository: roomRepository,
-        currentAdminId: currentAdminId,
-      ),
+    return MultiProvider(
+      providers: [
+        Provider<RoomRepository>.value(value: roomRepository),
+        Provider<GameRepository>.value(value: gameRepository),
+        ChangeNotifierProvider<GameCatalogController>(
+          create: (_) =>
+              GameCatalogController(gameRepository: gameRepository),
+        ),
+        ChangeNotifierProvider<CreateRoomController>(
+          create: (_) => CreateRoomController(
+            roomRepository: roomRepository,
+            currentAdminId: currentAdminId,
+          ),
+        ),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'ShotPlay',
         theme: ShotPlayTheme.dark,
-        initialRoute: AppRoutes.gameDetails,
+        initialRoute: AppRoutes.gameCatalog,
         routes: <String, WidgetBuilder>{
-          AppRoutes.gameDetails: (_) => const GameDetailsScreen(),
+          AppRoutes.gameCatalog: (_) => const GameCatalogScreen(),
         },
         onGenerateRoute: (settings) {
-          if (settings.name == AppRoutes.configureRoom) {
-            final game = settings.arguments as GameOption? ?? defaultGameOptions.first;
+          if (settings.name == AppRoutes.gameDetails) {
+            final game = settings.arguments as GameOption?;
+            return MaterialPageRoute<void>(
+              builder: (_) => GameDetailsScreen(initialGame: game),
+            );
+          }
 
+          if (settings.name == AppRoutes.configureRoom) {
+            final game =
+                settings.arguments as GameOption? ?? defaultGameOptions.first;
             return MaterialPageRoute<void>(
               builder: (_) => CreateRoomScreen(selectedGame: game),
             );
@@ -47,7 +69,6 @@ class ShotPlayApp extends StatelessWidget {
 
           if (settings.name == AppRoutes.waitingRoom) {
             final room = settings.arguments as RoomSession;
-
             return MaterialPageRoute<void>(
               builder: (_) => WaitingRoomScreen(
                 room: room,

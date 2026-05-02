@@ -55,7 +55,7 @@ class ShotPlayTheme {
           backgroundColor: _accent,
           foregroundColor: Colors.black,
           minimumSize: const Size.fromHeight(54),
-          textStyle: GoogleFonts.spaceGrotesk(
+          textStyle: const TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 16,
           ),
@@ -67,7 +67,7 @@ class ShotPlayTheme {
           foregroundColor: Colors.white,
           side: BorderSide(color: Colors.white.withOpacity(0.14)),
           minimumSize: const Size.fromHeight(54),
-          textStyle: GoogleFonts.spaceGrotesk(
+          textStyle: const TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 16,
           ),
@@ -75,19 +75,16 @@ class ShotPlayTheme {
         ),
       ),
       switchTheme: SwitchThemeData(
-        trackColor: MaterialStateProperty.resolveWith(
-          (states) => states.contains(MaterialState.selected)
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
               ? _accent.withOpacity(0.45)
               : Colors.white24,
         ),
-        thumbColor: MaterialStateProperty.resolveWith(
-          (states) => states.contains(MaterialState.selected)
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
               ? _accent
               : Colors.white70,
         ),
-      ),
-      dropdownMenuTheme: DropdownMenuThemeData(
-        textStyle: GoogleFonts.spaceGrotesk(color: Colors.white),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -107,8 +104,8 @@ class ShotPlayTheme {
           borderSide: const BorderSide(color: _accent, width: 1.3),
         ),
       ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: const Color(0xFF120D1B),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF120D1B),
         selectedItemColor: _accent,
         unselectedItemColor: Colors.white54,
         showUnselectedLabels: true,

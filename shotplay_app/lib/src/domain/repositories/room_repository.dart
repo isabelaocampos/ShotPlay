@@ -1,3 +1,4 @@
+import '../entities/room_player.dart';
 import '../entities/room_session.dart';
 
 abstract class RoomRepository {
@@ -9,6 +10,8 @@ abstract class RoomRepository {
     required bool isPrivate,
     required String roomName,
   });
+
+  Stream<List<RoomPlayer>> watchRoomPlayers(String roomCode);
 }
 
 class RoomCodeCollisionException implements Exception {}

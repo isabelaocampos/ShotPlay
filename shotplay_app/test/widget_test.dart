@@ -1,23 +1,18 @@
-// Basic smoke test placeholder. Replace with feature-specific tests as the
-// app grows (game catalog, configure room, waiting room flows, etc.).
+// Smoke test placeholder. Reemplaza con pruebas específicas de cada feature
+// (catálogo de juegos, configurar sala, sala de espera, etc.) a medida que
+// la app crece.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-        await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Center(child: Text('0')))));
-    
-        // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('renders placeholder smoke widget', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: Center(child: Text('ShotPlay'))),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('ShotPlay'), findsOneWidget);
   });
 }

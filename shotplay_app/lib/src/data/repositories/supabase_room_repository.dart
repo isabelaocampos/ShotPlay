@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../domain/entities/room_player.dart';
 import '../../domain/entities/room_session.dart';
 import '../../domain/repositories/room_repository.dart';
 
@@ -29,7 +30,17 @@ class SupabaseRoomRepository implements RoomRepository {
         'is_private': isPrivate,
       }).select().single();
 
-      return RoomSession.fromMap(response);
+      final session = RoomSession.fromMap(response);
+
+      await _client.from('room_players').insert(<String, dynamic>{
+        'room_code': roomCode,
+        'user_id': adminId,
+        'username': _resolveCurrentUsername(adminId),
+        'is_host': true,
+        'is_ready': true,
+      });
+
+      return session;
     } on PostgrestException catch (error) {
       final isDuplicate = error.code == '23505' ||
           error.message.toLowerCase().contains('duplicate');
@@ -44,5 +55,25 @@ class SupabaseRoomRepository implements RoomRepository {
     } catch (error) {
       throw RoomRepositoryException('No se pudo crear la sala.');
     }
+  }
+
+  @override
+  Stream<List<RoomPlayer>> watchRoomPlayers(String roomCode) {
+    return _client
+        .from('room_players')
+        .stream(primaryKey: <String>['id'])
+        .eq('room_code', roomCode)
+        .map((rows) => rows.map(RoomPlayer.fromMap).toList(growable: false));
+  }
+
+  String _resolveCurrentUsername(String adminId) {
+    final user = _client.auth.currentUser;
+    final metadataName = user?.userMetadata?['username'] as String?;
+    if (metadataName != null && metadataName.isNotEmpty) return metadataName;
+
+    final email = user?.email;
+    if (email != null && email.contains('@')) return email.split('@').first;
+
+    return 'Anfitrión';
   }
 }

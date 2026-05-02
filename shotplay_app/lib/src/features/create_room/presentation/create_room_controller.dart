@@ -43,11 +43,17 @@ class CreateRoomController extends ChangeNotifier {
 
   void selectGame(GameOption game) {
     _selectedGame = game;
+    _maxPlayers = _maxPlayers.clamp(game.minPlayers, game.maxPlayers);
     notifyListeners();
   }
 
   void updateMaxPlayers(int value) {
-    _maxPlayers = value;
+    final clamped = value.clamp(_selectedGame.minPlayers, _selectedGame.maxPlayers);
+    if (clamped != value) {
+      _errorMessage =
+          'Para ${_selectedGame.title}, elige entre ${_selectedGame.minPlayers} y ${_selectedGame.maxPlayers} jugadores.';
+    }
+    _maxPlayers = clamped;
     notifyListeners();
   }
 

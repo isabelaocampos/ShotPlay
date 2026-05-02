@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_bottom_navigation_bar.dart';
-import '../../../common_widgets/primary_button.dart';
-import '../../../common_widgets/secondary_button.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
 
 class GameDetailsScreen extends StatefulWidget {
-  const GameDetailsScreen({super.key});
+  const GameDetailsScreen({super.key, this.initialGame});
+
+  final GameOption? initialGame;
 
   @override
   State<GameDetailsScreen> createState() => _GameDetailsScreenState();
@@ -19,7 +19,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedGame = defaultGameOptions.first;
+    _selectedGame = widget.initialGame ?? defaultGameOptions.first;
   }
 
   @override
