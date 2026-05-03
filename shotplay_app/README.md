@@ -1,29 +1,16 @@
-# Sala de Espera - Flutter App
+# shotplay_app
 
-Pantalla de sala de espera para juego multijugador.
+A new Flutter project.
 
-## Características
+## Getting Started
 
-- ✅ Código de sala generado aleatoriamente (se regenera en cada acceso)
-- ✅ Botón "COPIAR LINK" copia el código al portapapeles
-- ✅ Lista de jugadores con estados: Listo, Conectado, Uniéndose
-- ✅ Slot vacío "Esperando más jugadores..."
-- ✅ Botón "INICIAR PARTIDA" (visual, sin funcionalidad aún)
-- ✅ Barra de navegación inferior funcional
-- ✅ Diseño pixel-perfect según diseño Figma
+This project is a starting point for a Flutter application.
 
-## Cómo usar
+A few resources to get you started if this is your first Flutter project:
 
-1. Abre el proyecto en VS Code o Android Studio
-2. Corre `flutter pub get`
-3. Corre `flutter run`
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-## Dependencias
-
-- `google_fonts: ^6.1.0` — Para la fuente Space Grotesk
-
-## Notas
-
-- El código de sala se regenera automáticamente cada vez que se navega a esta pantalla
-- El botón COPIAR LINK copia el código actual al portapapeles del dispositivo
-- El botón INICIAR PARTIDA está deshabilitado visualmente (implementación pendiente)
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.

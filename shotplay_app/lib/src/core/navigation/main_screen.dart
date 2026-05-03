@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shotplay_app/src/features/sala_espera/ui/screens/sala_espera_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../screens/sala_espera_screen.dart';
+import '../routing/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../../features/profile/ui/bloc/profile_bloc.dart';
+import '../../features/profile/ui/screens/profile_screen.dart';
 
 /// Shell screen that owns the bottom navigation bar.
 ///
-/// Each tab renders a different feature screen. The "Juegos" tab
-/// shows the SalaEsperaScreen.
+/// Each tab renders a different feature screen. The [ProfileBloc] is scoped
+/// here so it stays alive for the lifetime of the shell rather than being
+/// recreated on every tab switch.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -16,28 +22,41 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 1; // "Juegos" active by default
+  int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Supabase.instance.client.auth.currentSession == null) {
+        Navigator.pushReplacementNamed(context, AppRoutes.welcome);
+      }
+    });
+  }
 
   late final List<Widget> _screens = [
+    const SalaEsperaScreen(), // Meanwhile, this is only for show the waiting room screen
+
+    // const Center(
+    //   child: Text(
+    //     'Inicio',
+    //     style: TextStyle(color: Colors.white, fontSize: 24),
+    //   ),
+    // ),
+    
     const Center(
       child: Text(
-        'Inicio',
+        'Juegos',
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
-    const SalaEsperaScreen(),
     const Center(
       child: Text(
         'Social',
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
-    const Center(
-      child: Text(
-        'Perfil',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    ),
+    BlocProvider(create: (_) => ProfileBloc(), child: const ProfileScreen()),
   ];
 
   static const List<_NavItem> _navItems = [
@@ -55,23 +74,21 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(
-              color: AppTheme.primary.withOpacity(0.2),
-              width: 1,
-            ),
+            top: BorderSide(color: AppTheme.primary.withOpacity(0.2), width: 1),
           ),
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          items: _navItems
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  label: item.label,
-                ),
-              )
-              .toList(),
+          items:
+              _navItems
+                  .map(
+                    (item) => BottomNavigationBarItem(
+                      icon: Icon(item.icon),
+                      label: item.label,
+                    ),
+                  )
+                  .toList(),
           selectedLabelStyle: GoogleFonts.spaceGrotesk(
             fontSize: 10,
             fontWeight: FontWeight.w600,

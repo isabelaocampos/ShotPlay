@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/navigation/main_screen.dart';
-import 'core/theme/app_theme.dart';
+import 'src/app.dart';
+import 'src/core/config/env.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+/// Application entry point.
+///
+/// Responsibilities here are intentionally narrow: initialize external
+/// services (environment variables, Supabase) and hand control to
+/// [ShotPlayApp]. Routing, theming, and DI live in [ShotPlayApp].
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  await dotenv.load(fileName: '.env');
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sala de Espera',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: const MainScreen(),
-    );
-  }
+  await Supabase.initialize(
+    url: Env.supabaseUrl,
+    anonKey: Env.supabaseAnonKey,
+  );
+
+  runApp(const ShotPlayApp());
 }
