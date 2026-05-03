@@ -70,6 +70,7 @@ GameOption gameOptionFromDbId(int gameDbId) {
 const defaultGameOptions = <GameOption>[
   GameOption(
     id: 'snakes_ladders',
+    gameDbId: 1,
     title: 'Escaleras y Serpientes',
     subtitle: 'El tablero social para subir, caer y volver a intentar.',
     description:
@@ -85,6 +86,7 @@ const defaultGameOptions = <GameOption>[
   ),
   GameOption(
     id: 'impostor',
+    gameDbId: 2,
     title: 'El Impostor',
     subtitle: 'Descubre quién está ocultando su identidad.',
     description:
