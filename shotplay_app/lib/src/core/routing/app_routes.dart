@@ -6,7 +6,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String home = '/home';
-
+  
   // Game flow
   static const String gameCatalog = '/';
   static const String gameDetails = '/game-details';

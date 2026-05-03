@@ -48,10 +48,7 @@ class _MainScreenState extends State<MainScreen> {
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
-    BlocProvider(
-      create: (_) => ProfileBloc(),
-      child: const ProfileScreen(),
-    ),
+    BlocProvider(create: (_) => ProfileBloc(), child: const ProfileScreen()),
   ];
 
   static const List<_NavItem> _navItems = [
@@ -69,23 +66,21 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(
-              color: AppTheme.primary.withOpacity(0.2),
-              width: 1,
-            ),
+            top: BorderSide(color: AppTheme.primary.withOpacity(0.2), width: 1),
           ),
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          items: _navItems
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  label: item.label,
-                ),
-              )
-              .toList(),
+          items:
+              _navItems
+                  .map(
+                    (item) => BottomNavigationBarItem(
+                      icon: Icon(item.icon),
+                      label: item.label,
+                    ),
+                  )
+                  .toList(),
           selectedLabelStyle: GoogleFonts.spaceGrotesk(
             fontSize: 10,
             fontWeight: FontWeight.w600,

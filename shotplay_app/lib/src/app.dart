@@ -14,7 +14,6 @@ import 'features/auth/ui/screens/welcome_screen.dart';
 import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
 import 'features/game_catalog/presentation/game_catalog_controller.dart';
-import 'features/game_catalog/presentation/game_catalog_screen.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
 import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
@@ -34,17 +33,8 @@ class ShotPlayApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        Provider<RoomRepository>.value(value: roomRepository),
-        Provider<GameRepository>.value(value: gameRepository),
-        ChangeNotifierProvider<GameCatalogController>(
-          create: (_) => GameCatalogController(gameRepository: gameRepository),
-        ),
-        ChangeNotifierProvider<CreateRoomController>(
-          create: (_) => CreateRoomController(roomRepository: roomRepository),
-        ),
-      ],
+    return Provider<RoomRepository>.value(
+      value: roomRepository,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'ShotPlay',
@@ -60,38 +50,48 @@ class ShotPlayApp extends StatelessWidget {
                 create: (_) => SignupBloc(),
                 child: const SignupScreen(),
               ),
-          AppRoutes.home: (_) => const MainScreen(),
-          AppRoutes.gameCatalog: (_) => const GameCatalogScreen(),
+          AppRoutes.home: (_) => ChangeNotifierProvider(
+                create: (_) =>
+                    GameCatalogController(gameRepository: gameRepository),
+                child: const MainScreen(),
+              ),
+          AppRoutes.gameCatalog: (_) => ChangeNotifierProvider(
+                create: (_) =>
+                    GameCatalogController(gameRepository: gameRepository),
+                child: const MainScreen(),
+              ),
         },
         onGenerateRoute: (settings) {
-          if (settings.name == AppRoutes.gameDetails) {
-            final game = settings.arguments as GameOption?;
-            return MaterialPageRoute<void>(
-              builder: (_) => GameDetailsScreen(initialGame: game),
-            );
+          switch (settings.name) {
+            case AppRoutes.gameDetails:
+              final game = settings.arguments as GameOption;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => GameDetailsScreen(initialGame: game),
+              );
+            case AppRoutes.configureRoom:
+              final game = settings.arguments as GameOption;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ChangeNotifierProvider(
+                  create: (_) =>
+                      CreateRoomController(roomRepository: roomRepository),
+                  child: CreateRoomScreen(selectedGame: game),
+                ),
+              );
+            case AppRoutes.waitingRoom:
+              final room = settings.arguments as RoomSession;
+              final currentUserId =
+                  Supabase.instance.client.auth.currentUser?.id;
+              final isAdmin =
+                  currentUserId != null && currentUserId == room.adminId;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
+              );
+            default:
+              return null;
           }
-
-          if (settings.name == AppRoutes.configureRoom) {
-            final game =
-                settings.arguments as GameOption? ?? defaultGameOptions.first;
-            return MaterialPageRoute<void>(
-              builder: (_) => CreateRoomScreen(selectedGame: game),
-            );
-          }
-
-          if (settings.name == AppRoutes.waitingRoom) {
-            final room = settings.arguments as RoomSession;
-            final currentUserId =
-                Supabase.instance.client.auth.currentUser?.id;
-            return MaterialPageRoute<void>(
-              builder: (_) => WaitingRoomScreen(
-                room: room,
-                isAdmin: currentUserId != null && room.adminId == currentUserId,
-              ),
-            );
-          }
-
-          return null;
         },
       ),
     );
