@@ -11,7 +11,8 @@ class SupabaseGameRepository implements GameRepository {
 
   /// The available game catalog is defined statically in the app.
   /// There is no 'games' table in the schema — game types are identified
-  /// by the 'game_id' string column in the 'room' table.
+  /// by the integer 'game_id' (int4) column in the 'room' table, which
+  /// must match GameOption.gameDbId.
   @override
   Future<List<GameOption>> getAvailableGames() async {
     return defaultGameOptions;

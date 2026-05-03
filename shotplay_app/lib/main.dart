@@ -16,8 +16,6 @@ import 'src/domain/repositories/room_repository.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Silence font-download failures when the device/emulator is offline.
-  // google_fonts falls back to system fonts automatically.
   GoogleFonts.config.allowRuntimeFetching = true;
   FlutterError.onError = (details) {
     final msg = details.exception.toString();
@@ -27,7 +25,6 @@ Future<void> main() async {
     FlutterError.presentError(details);
   };
 
-  // Load .env when bundled as an asset (dev / CI). Ignored if not present.
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {
@@ -41,7 +38,6 @@ Future<void> main() async {
       ShotPlayApp(
         roomRepository: dependencies.roomRepository,
         gameRepository: dependencies.gameRepository,
-        currentAdminId: dependencies.currentAdminId,
       ),
     ),
     (error, stack) {
@@ -56,7 +52,6 @@ Future<void> main() async {
 }
 
 Future<_AppDependencies> _buildAppDependencies() async {
-  // Prefer .env file; fall back to compile-time --dart-define.
   final supabaseUrl = dotenv.env['SUPABASE_URL']?.isNotEmpty == true
       ? dotenv.env['SUPABASE_URL']!
       : const String.fromEnvironment('SUPABASE_URL');
@@ -71,14 +66,12 @@ Future<_AppDependencies> _buildAppDependencies() async {
     return _AppDependencies(
       roomRepository: SupabaseRoomRepository(client),
       gameRepository: SupabaseGameRepository(client),
-      currentAdminId: client.auth.currentUser?.id ?? 'demo-admin',
     );
   }
 
   return const _AppDependencies(
     roomRepository: LocalRoomRepository(),
     gameRepository: LocalGameRepository(),
-    currentAdminId: 'demo-admin',
   );
 }
 
@@ -86,10 +79,8 @@ class _AppDependencies {
   const _AppDependencies({
     required this.roomRepository,
     required this.gameRepository,
-    required this.currentAdminId,
   });
 
   final RoomRepository roomRepository;
   final GameRepository gameRepository;
-  final String currentAdminId;
 }

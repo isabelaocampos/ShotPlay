@@ -6,15 +6,11 @@ import '../../../domain/entities/room_session.dart';
 import '../../../domain/repositories/room_repository.dart';
 
 class CreateRoomController extends ChangeNotifier {
-  CreateRoomController({
-    required RoomRepository roomRepository,
-    required String currentAdminId,
-  })  : _roomRepository = roomRepository,
-        currentAdminId = currentAdminId,
+  CreateRoomController({required RoomRepository roomRepository})
+      : _roomRepository = roomRepository,
         _selectedGame = defaultGameOptions.first;
 
   final RoomRepository _roomRepository;
-  final String currentAdminId;
 
   GameOption _selectedGame;
   int _maxPlayers = 6;
@@ -88,8 +84,7 @@ class CreateRoomController extends ChangeNotifier {
         try {
           final room = await _roomRepository.createRoom(
             roomCode: roomCode,
-            adminId: currentAdminId,
-            gameId: _selectedGame.id,
+            gameId: _selectedGame.gameDbId,
             maxPlayers: _maxPlayers,
             isPrivate: _isPrivateRoom,
             roomName: sanitizedName,
@@ -105,6 +100,10 @@ class CreateRoomController extends ChangeNotifier {
       }
 
       throw RoomRepositoryException('No se pudo generar un código único.');
+    } on NotAuthenticatedException {
+      _errorMessage = 'Inicia sesión para crear una sala.';
+      _setLoading(false);
+      return null;
     } on RoomRepositoryException catch (error) {
       _errorMessage = error.message;
       _setLoading(false);

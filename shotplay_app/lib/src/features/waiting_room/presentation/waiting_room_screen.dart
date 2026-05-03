@@ -41,7 +41,7 @@ class _WaitingRoomView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<WaitingRoomController>();
-    final game = gameOptionFromId(room.gameId);
+    final game = gameOptionFromDbId(room.gameId);
 
     return Scaffold(
       appBar: AppBar(

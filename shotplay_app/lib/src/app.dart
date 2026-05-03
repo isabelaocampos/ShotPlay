@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/navigation/main_screen.dart';
 import 'core/routing/app_routes.dart';
@@ -26,12 +27,10 @@ class ShotPlayApp extends StatelessWidget {
     super.key,
     required this.roomRepository,
     required this.gameRepository,
-    required this.currentAdminId,
   });
 
   final RoomRepository roomRepository;
   final GameRepository gameRepository;
-  final String currentAdminId;
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +42,7 @@ class ShotPlayApp extends StatelessWidget {
           create: (_) => GameCatalogController(gameRepository: gameRepository),
         ),
         ChangeNotifierProvider<CreateRoomController>(
-          create: (_) => CreateRoomController(
-            roomRepository: roomRepository,
-            currentAdminId: currentAdminId,
-          ),
+          create: (_) => CreateRoomController(roomRepository: roomRepository),
         ),
       ],
       child: MaterialApp(
@@ -85,10 +81,12 @@ class ShotPlayApp extends StatelessWidget {
 
           if (settings.name == AppRoutes.waitingRoom) {
             final room = settings.arguments as RoomSession;
+            final currentUserId =
+                Supabase.instance.client.auth.currentUser?.id;
             return MaterialPageRoute<void>(
               builder: (_) => WaitingRoomScreen(
                 room: room,
-                isAdmin: room.adminId == currentAdminId,
+                isAdmin: currentUserId != null && room.adminId == currentUserId,
               ),
             );
           }

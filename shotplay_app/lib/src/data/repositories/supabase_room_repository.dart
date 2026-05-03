@@ -12,32 +12,43 @@ class SupabaseRoomRepository implements RoomRepository {
   @override
   Future<RoomSession> createRoom({
     required String roomCode,
-    required String adminId,
-    required String gameId,
+    required int gameId,
     required int maxPlayers,
     required bool isPrivate,
     required String roomName,
   }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw NotAuthenticatedException();
+    }
+    final adminId = user.id;
+
     try {
-      // Only insert columns that exist in the actual schema:
-      // id_room, room_code, admin_id, game_id, custom_max_players
-      // Missing from schema: status, created_at, room_name, is_private
-      final response = await _client.from('room').insert(<String, dynamic>{
-        'room_code': roomCode,
-        'admin_id': adminId,
-        'game_id': gameId,
-        'custom_max_players': maxPlayers,
-      }).select().single();
+      final response = await _client
+          .from('room')
+          .insert(<String, dynamic>{
+            'room_code': roomCode,
+            'admin_id': adminId,
+            'game_id': gameId,
+            'custom_max_players': maxPlayers,
+          })
+          .select()
+          .single();
 
-      final session = RoomSession.fromMap(response);
-
-      // id_room is int4 — use the raw response value directly to avoid
-      // String→int round-trip issues when inserting into participation.
-      final roomId = response['id_room'];
+      final session = RoomSession(
+        idRoom: (response['id_room'] as num).toInt(),
+        roomCode: response['room_code'] as String,
+        adminId: response['admin_id'] as String,
+        gameId: (response['game_id'] as num).toInt(),
+        maxPlayers: (response['custom_max_players'] as num?)?.toInt()
+            ?? maxPlayers,
+        roomName: roomName,
+        isPrivate: isPrivate,
+      );
 
       await _client.from('participation').insert(<String, dynamic>{
         'user_id': adminId,
-        'room_id': roomId,
+        'room_id': session.idRoom,
         'status': 'active',
         'joined_at': DateTime.now().toUtc().toIso8601String(),
       });
@@ -52,8 +63,6 @@ class SupabaseRoomRepository implements RoomRepository {
       throw RoomRepositoryException(
         error.message.isNotEmpty ? error.message : 'No se pudo crear la sala.',
       );
-    } catch (_) {
-      throw RoomRepositoryException('No se pudo crear la sala.');
     }
   }
 
@@ -65,8 +74,7 @@ class SupabaseRoomRepository implements RoomRepository {
         .eq('room_code', roomCode)
         .single();
 
-    // id_room is int4 — convert to String for comparison later
-    final roomId = roomData['id_room'];
+    final roomId = (roomData['id_room'] as num).toInt();
     final adminId = roomData['admin_id'] as String;
 
     yield* _client

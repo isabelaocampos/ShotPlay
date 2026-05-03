@@ -4,8 +4,7 @@ import '../entities/room_session.dart';
 abstract class RoomRepository {
   Future<RoomSession> createRoom({
     required String roomCode,
-    required String adminId,
-    required String gameId,
+    required int gameId,
     required int maxPlayers,
     required bool isPrivate,
     required String roomName,
@@ -15,6 +14,11 @@ abstract class RoomRepository {
 }
 
 class RoomCodeCollisionException implements Exception {}
+
+class NotAuthenticatedException implements Exception {
+  @override
+  String toString() => 'No hay un usuario autenticado.';
+}
 
 class RoomRepositoryException implements Exception {
   RoomRepositoryException(this.message);

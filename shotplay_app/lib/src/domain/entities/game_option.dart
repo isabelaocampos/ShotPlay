@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class GameOption {
   const GameOption({
     required this.id,
+    required this.gameDbId,
     required this.title,
     required this.subtitle,
     required this.description,
@@ -16,6 +17,11 @@ class GameOption {
   });
 
   final String id;
+  // Maps to room.game_id (int4) in Supabase. These integers MUST match the
+  // primary keys of whatever 'game' lookup rows exist in the database.
+  // If your DB has no game lookup table yet, ensure room.game_id is nullable
+  // or remove the column from the insert in SupabaseRoomRepository.
+  final int gameDbId;
   final String title;
   final String subtitle;
   final String description;
@@ -39,9 +45,17 @@ GameOption gameOptionFromId(String id) {
   );
 }
 
+GameOption gameOptionFromDbId(int gameDbId) {
+  return defaultGameOptions.firstWhere(
+    (game) => game.gameDbId == gameDbId,
+    orElse: () => defaultGameOptions.first,
+  );
+}
+
 const defaultGameOptions = <GameOption>[
   GameOption(
     id: 'never_have_i_ever',
+    gameDbId: 1,
     title: 'Never Have I Ever',
     subtitle: 'Un clásico emocionante reinventado para ShotPlay.',
     description:
@@ -56,6 +70,7 @@ const defaultGameOptions = <GameOption>[
   ),
   GameOption(
     id: 'truth_or_dare',
+    gameDbId: 2,
     title: 'Truth or Dare',
     subtitle: 'Retos rápidos para grupos que quieren empezar ya.',
     description:
@@ -70,6 +85,7 @@ const defaultGameOptions = <GameOption>[
   ),
   GameOption(
     id: 'roulette',
+    gameDbId: 3,
     title: 'Shot Roulette',
     subtitle: 'Rondas impredecibles y decisiones al instante.',
     description:

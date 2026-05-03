@@ -7,6 +7,7 @@ import '../../domain/repositories/room_repository.dart';
 class LocalRoomRepository implements RoomRepository {
   const LocalRoomRepository();
 
+  static int _nextRoomId = 1;
   static final Map<String, RoomSession> _rooms = <String, RoomSession>{};
   static final Map<String, List<RoomPlayer>> _players =
       <String, List<RoomPlayer>>{};
@@ -16,8 +17,7 @@ class LocalRoomRepository implements RoomRepository {
   @override
   Future<RoomSession> createRoom({
     required String roomCode,
-    required String adminId,
-    required String gameId,
+    required int gameId,
     required int maxPlayers,
     required bool isPrivate,
     required String roomName,
@@ -26,14 +26,14 @@ class LocalRoomRepository implements RoomRepository {
       throw RoomCodeCollisionException();
     }
 
+    final localAdminId = 'local-admin-$roomCode';
+
     final room = RoomSession(
-      idRoom: roomCode,
+      idRoom: _nextRoomId++,
       roomCode: roomCode,
-      adminId: adminId,
+      adminId: localAdminId,
       gameId: gameId,
       maxPlayers: maxPlayers,
-      status: 'waiting',
-      createdAt: DateTime.now().toUtc(),
       roomName: roomName,
       isPrivate: isPrivate,
     );
@@ -43,7 +43,7 @@ class LocalRoomRepository implements RoomRepository {
       RoomPlayer(
         id: '$roomCode-host',
         roomCode: roomCode,
-        userId: adminId,
+        userId: localAdminId,
         username: 'Anfitrión',
         isHost: true,
         isReady: true,
