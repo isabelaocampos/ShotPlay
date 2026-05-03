@@ -178,58 +178,87 @@ class _ConfigHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      height: 224,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            game.accentColor.withOpacity(0.28),
-            const Color(0xFF1C1230),
-          ],
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Stack(
         children: <Widget>[
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                game.heroImagePath,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[
+                    Colors.black.withOpacity(0.62),
+                    Colors.black.withOpacity(0.42),
+                    Colors.transparent,
+                  ],
+                  stops: const <double>[0.0, 0.68, 1.0],
+                ),
+              ),
+            ),
+          ),
           Positioned(
-            right: 0,
-            top: 0,
+            left: 18,
+            top: 18,
             child: Text(
               game.badge,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: game.accentColor,
+                    color: const Color(0xFFB427F5),
                     letterSpacing: 1.2,
                     fontWeight: FontWeight.w800,
                   ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'JUEGO SELECCIONADO',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Colors.white54,
-                      letterSpacing: 1.1,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                game.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                game.subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
-                    ),
-              ),
-            ],
+          Positioned(
+            left: 18,
+            right: 18,
+            bottom: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'JUEGO SELECCIONADO',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.white54,
+                        letterSpacing: 1.1,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  game.title,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 0.95,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: 250,
+                  child: Text(
+                    game.subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white70,
+                          height: 1.35,
+                        ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

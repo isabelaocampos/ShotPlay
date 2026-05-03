@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/resources/app_images.dart';
+
 class GameOption {
   const GameOption({
     required this.id,
@@ -11,6 +13,7 @@ class GameOption {
     required this.maxPlayers,
     required this.durationMinutes,
     required this.icon,
+    required this.imagePath,
     required this.accentColor,
     required this.secondaryColor,
   });
@@ -24,12 +27,24 @@ class GameOption {
   final int maxPlayers;
   final int durationMinutes;
   final IconData icon;
+  final String imagePath;
   final Color accentColor;
   final Color secondaryColor;
 
   String get playersLabel => '$minPlayers-$maxPlayers personas';
 
   String get durationLabel => '~$durationMinutes min';
+
+  String get heroImagePath {
+    switch (id) {
+      case 'snakes_ladders':
+        return AppImages.headlinerEscalera;
+      case 'impostor':
+        return AppImages.headlinerImpostor;
+      default:
+        return imagePath;
+    }
+  }
 }
 
 GameOption gameOptionFromId(String id) {
@@ -41,45 +56,33 @@ GameOption gameOptionFromId(String id) {
 
 const defaultGameOptions = <GameOption>[
   GameOption(
-    id: 'never_have_i_ever',
-    title: 'Never Have I Ever',
-    subtitle: 'Un clásico emocionante reinventado para ShotPlay.',
+    id: 'snakes_ladders',
+    title: 'Escaleras y Serpientes',
+    subtitle: 'El tablero social para subir, caer y volver a intentar.',
     description:
-        'Sube por las escaleras para alcanzar la gloria o deslízate por las serpientes en este juego de azar y estrategia ligera.',
-    badge: 'POPULAR',
+        'Avanza por el tablero, evita las serpientes y aprovecha cada escalera para llegar primero a la meta.',
+    badge: 'TABLERO',
     minPlayers: 2,
-    maxPlayers: 4,
-    durationMinutes: 15,
-    icon: Icons.local_bar_rounded,
-    accentColor: Color(0xFFFF6B8B),
+    maxPlayers: 6,
+    durationMinutes: 20,
+    icon: Icons.view_module_rounded,
+    imagePath: AppImages.snakesLadders,
+    accentColor: Color(0xFF4CD7C0),
     secondaryColor: Color(0xFFF9A03F),
   ),
   GameOption(
-    id: 'truth_or_dare',
-    title: 'Truth or Dare',
-    subtitle: 'Retos rápidos para grupos que quieren empezar ya.',
+    id: 'impostor',
+    title: 'El Impostor',
+    subtitle: 'Descubre quién está ocultando su identidad.',
     description:
-        'Ideal para partidas cortas, con acciones rápidas y preguntas que hacen avanzar la noche sin pausas largas.',
-    badge: 'NUEVO',
-    minPlayers: 3,
-    maxPlayers: 8,
-    durationMinutes: 20,
-    icon: Icons.auto_awesome_rounded,
+        'Discusión, sospechas y pistas ocultas para un grupo que quiere retarse a descubrir al impostor.',
+    badge: 'SOCIAL',
+    minPlayers: 5,
+    maxPlayers: 10,
+    durationMinutes: 15,
+    icon: Icons.groups_rounded,
+    imagePath: AppImages.impostor,
     accentColor: Color(0xFF8E7BFF),
     secondaryColor: Color(0xFF4BC6FF),
-  ),
-  GameOption(
-    id: 'roulette',
-    title: 'Shot Roulette',
-    subtitle: 'Rondas impredecibles y decisiones al instante.',
-    description:
-        'Un modo veloz para grupos grandes: la ruleta decide, el grupo responde y cada turno cambia el ritmo.',
-    badge: 'RÁPIDO',
-    minPlayers: 2,
-    maxPlayers: 10,
-    durationMinutes: 10,
-    icon: Icons.casino_rounded,
-    accentColor: Color(0xFF4CD7C0),
-    secondaryColor: Color(0xFFB56BFF),
   ),
 ];

@@ -90,67 +90,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   ],
                 ),
                 const SizedBox(height: 18),
-                Text(
-                  'Juegos',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white70,
-                      ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 120,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemBuilder: (context, index) {
-                      final game = defaultGameOptions[index];
-                      final isSelected = game.id == _selectedGame.id;
-
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedGame = game),
-                        child: Container(
-                          width: 168,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? game.accentColor.withOpacity(0.18)
-                                : const Color(0xFF1A1227),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: isSelected
-                                  ? game.accentColor
-                                  : Colors.white.withOpacity(0.08),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Icon(game.icon, color: game.accentColor),
-                              const Spacer(),
-                              Text(
-                                game.title,
-                                style: Theme.of(context).textTheme.titleSmall,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                game.subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.white70,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemCount: defaultGameOptions.length,
-                  ),
-                ),
-                const SizedBox(height: 18),
                 _ActionTile(
                   label: 'Crear sala',
                   icon: Icons.add_circle_outline_rounded,
@@ -191,56 +130,65 @@ class _GameHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 240,
+      height: 236,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            game.accentColor.withOpacity(0.32),
-            game.secondaryColor.withOpacity(0.2),
-            const Color(0xFF241333),
-          ],
-        ),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Stack(
         children: <Widget>[
-          Positioned(
-            right: -24,
-            top: 18,
-            child: _DecorativeChip(color: game.accentColor),
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                game.heroImagePath,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Colors.black.withOpacity(0.08),
+                    Colors.black.withOpacity(0.25),
+                    Colors.black.withOpacity(0.62),
+                  ],
+                ),
+              ),
+            ),
           ),
           Positioned(
-            left: 18,
-            bottom: 18,
-            child: _DecorativeChip(color: game.secondaryColor, large: true),
+            left: 16,
+            top: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white.withOpacity(0.18)),
+              ),
+              child: Text(
+                game.badge,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+              ),
+            ),
           ),
           Positioned(
             left: 18,
             right: 18,
             bottom: 18,
-            top: 18,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.28),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    game.badge,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: game.secondaryColor,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                  ),
-                ),
-                const Spacer(),
                 Text(
                   'JUEGO SELECCIONADO',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -266,26 +214,6 @@ class _GameHero extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DecorativeChip extends StatelessWidget {
-  const _DecorativeChip({required this.color, this.large = false});
-
-  final Color color;
-  final bool large;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: large ? 156 : 116,
-      height: large ? 156 : 116,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withOpacity(0.18),
-        border: Border.all(color: color.withOpacity(0.35), width: 10),
       ),
     );
   }

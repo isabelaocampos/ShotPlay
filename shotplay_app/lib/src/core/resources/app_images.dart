@@ -6,5 +6,9 @@ class AppImages {
   static const String firstAvatar = 'assets/images/primer_avatar.png';
   static const String secondAvatar = 'assets/images/segundo_avatar.png';
   static const String thirdAvatar = 'assets/images/tercer_avatar.png';
+  static const String snakesLadders = 'assets/images/escaleras_serpientes.png';
+  static const String impostor = 'assets/images/impostor.png';
+  static const String headlinerEscalera = 'assets/images/headliner_escalera.png';
+  static const String headlinerImpostor = 'assets/images/headliner_impostor.png';
 
 }
