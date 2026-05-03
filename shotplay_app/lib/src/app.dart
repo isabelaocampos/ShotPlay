@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
+import 'core/navigation/main_screen.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/entities/game_option.dart';
 import 'domain/entities/room_session.dart';
 import 'domain/repositories/game_repository.dart';
 import 'domain/repositories/room_repository.dart';
+import 'features/auth/ui/screens/welcome_screen.dart';
 import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
 import 'features/game_catalog/presentation/game_catalog_controller.dart';
 import 'features/game_catalog/presentation/game_catalog_screen.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
+import 'features/login/ui/bloc/login_bloc.dart';
+import 'features/login/ui/screens/login_screen.dart';
+import 'features/signup/ui/bloc/signup_bloc.dart';
+import 'features/signup/ui/screens/signup_screen.dart';
 import 'features/waiting_room/presentation/waiting_room_screen.dart';
 
 class ShotPlayApp extends StatelessWidget {
@@ -33,8 +40,7 @@ class ShotPlayApp extends StatelessWidget {
         Provider<RoomRepository>.value(value: roomRepository),
         Provider<GameRepository>.value(value: gameRepository),
         ChangeNotifierProvider<GameCatalogController>(
-          create: (_) =>
-              GameCatalogController(gameRepository: gameRepository),
+          create: (_) => GameCatalogController(gameRepository: gameRepository),
         ),
         ChangeNotifierProvider<CreateRoomController>(
           create: (_) => CreateRoomController(
@@ -46,9 +52,19 @@ class ShotPlayApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'ShotPlay',
-        theme: ShotPlayTheme.dark,
-        initialRoute: AppRoutes.gameCatalog,
-        routes: <String, WidgetBuilder>{
+        theme: AppTheme.dark,
+        initialRoute: AppRoutes.welcome,
+        routes: {
+          AppRoutes.welcome: (_) => const WelcomeScreen(),
+          AppRoutes.login: (_) => BlocProvider(
+                create: (_) => LoginBloc(),
+                child: LoginScreen(),
+              ),
+          AppRoutes.signup: (_) => BlocProvider(
+                create: (_) => SignupBloc(),
+                child: const SignupScreen(),
+              ),
+          AppRoutes.home: (_) => const MainScreen(),
           AppRoutes.gameCatalog: (_) => const GameCatalogScreen(),
         },
         onGenerateRoute: (settings) {

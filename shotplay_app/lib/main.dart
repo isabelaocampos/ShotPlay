@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -16,18 +17,25 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Silence font-download failures when the device/emulator is offline.
-  // google_fonts falls back to system fonts automatically; we just prevent
-  // the unhandled async exception from crashing the app in debug mode.
+  // google_fonts falls back to system fonts automatically.
   GoogleFonts.config.allowRuntimeFetching = true;
   FlutterError.onError = (details) {
     final msg = details.exception.toString();
     if (msg.contains('fonts.gstatic.com') || msg.contains('Failed host lookup')) {
-      return; // swallow offline font errors silently
+      return;
     }
     FlutterError.presentError(details);
   };
 
+  // Load .env when bundled as an asset (dev / CI). Ignored if not present.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Not bundled — fall back to --dart-define values below.
+  }
+
   final dependencies = await _buildAppDependencies();
+
   runZonedGuarded(
     () => runApp(
       ShotPlayApp(
@@ -48,8 +56,13 @@ Future<void> main() async {
 }
 
 Future<_AppDependencies> _buildAppDependencies() async {
-  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  // Prefer .env file; fall back to compile-time --dart-define.
+  final supabaseUrl = dotenv.env['SUPABASE_URL']?.isNotEmpty == true
+      ? dotenv.env['SUPABASE_URL']!
+      : const String.fromEnvironment('SUPABASE_URL');
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']?.isNotEmpty == true
+      ? dotenv.env['SUPABASE_ANON_KEY']!
+      : const String.fromEnvironment('SUPABASE_ANON_KEY');
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);

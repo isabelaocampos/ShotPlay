@@ -1,6 +1,5 @@
-// Smoke test placeholder. Reemplaza con pruebas específicas de cada feature
-// (catálogo de juegos, configurar sala, sala de espera, etc.) a medida que
-// la app crece.
+// Smoke test placeholder. Replace with feature-specific tests
+// (auth, game catalog, create room, waiting room) as the app grows.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
