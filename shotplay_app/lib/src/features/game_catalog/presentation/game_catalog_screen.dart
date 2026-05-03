@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/resources/app_images.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
 import 'game_catalog_controller.dart';
@@ -16,9 +17,6 @@ class _GameCatalogScreenState extends State<GameCatalogScreen> {
   @override
   void initState() {
     super.initState();
-    // Use Future.microtask so the first notifyListeners() inside loadGames()
-    // fires after the full build pipeline has completed, avoiding the
-    // "setState called during build" error.
     Future.microtask(() {
       if (!mounted) return;
       context.read<GameCatalogController>().loadGames();
@@ -31,11 +29,22 @@ class _GameCatalogScreenState extends State<GameCatalogScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Juegos'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Image.asset(AppImages.welcomeBg, width: 28, height: 28),
+            const SizedBox(width: 10),
+            const Text('ShotPlay'),
+          ],
+        ),
         actions: <Widget>[
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.search_rounded),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.notifications_none_rounded),
           ),
         ],
       ),
@@ -75,9 +84,17 @@ class _CatalogList extends StatelessWidget {
 
   final GameCatalogController controller;
 
+  static const Set<String> _visibleGameIds = <String>{
+    'snakes_ladders',
+    'impostor',
+  };
+
   @override
   Widget build(BuildContext context) {
-    final games = controller.games;
+    final games = controller.games
+        .where((game) => _visibleGameIds.contains(game.id))
+        .toList(growable: false);
+
     if (games.isEmpty) {
       return const Center(
         child: Padding(
@@ -93,26 +110,51 @@ class _CatalogList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: controller.loadGames,
-      child: ListView.separated(
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: games.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 14),
-        itemBuilder: (_, index) {
-          final game = games[index];
-          final isSelected = controller.selectedGame?.id == game.id;
-          return _GameCard(
-            game: game,
-            isSelected: isSelected,
-            onTap: () {
-              controller.selectGame(game);
-              Navigator.of(context).pushNamed(
-                AppRoutes.gameDetails,
-                arguments: game,
+        children: <Widget>[
+          Text(
+            'Juegos populares',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Elige uno de los modos disponibles y crea tu sala.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: games.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 0.72,
+            ),
+            itemBuilder: (_, index) {
+              final game = games[index];
+              final isSelected = controller.selectedGame?.id == game.id;
+              return _GameCard(
+                game: game,
+                isSelected: isSelected,
+                onTap: () {
+                  controller.selectGame(game);
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.gameDetails,
+                    arguments: game,
+                  );
+                },
               );
             },
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -133,12 +175,12 @@ class _GameCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(26),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: const Color(0xFF1A1227),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(26),
           border: Border.all(
             color: isSelected ? game.accentColor : Colors.white.withOpacity(0.06),
             width: isSelected ? 2 : 1,
@@ -154,61 +196,84 @@ class _GameCard extends StatelessWidget {
                 )
               : null,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[
-                    game.accentColor.withOpacity(0.55),
-                    game.secondaryColor.withOpacity(0.45),
-                  ],
-                ),
+            SizedBox(
+              height: 136,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  Image.asset(game.heroImagePath, fit: BoxFit.cover),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.2),
+                          Colors.black.withOpacity(0.62),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    top: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: game.accentColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        game.badge,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          game.title,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          game.subtitle,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.white70,
+                              ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              child: Icon(game.icon, color: Colors.white, size: 30),
             ),
-            const SizedBox(width: 14),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: game.accentColor.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          game.badge,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: game.accentColor,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.6,
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    game.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${game.subtitle.toUpperCase()} • ${game.minPlayers}-${game.maxPlayers} JUGADORES',
+                    '${game.minPlayers}-${game.maxPlayers} jugadores',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Colors.white60,
                           letterSpacing: 0.4,
@@ -216,15 +281,15 @@ class _GameCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    game.durationLabel,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white60,
+                        ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Icon(
-              isSelected
-                  ? Icons.check_circle_rounded
-                  : Icons.chevron_right_rounded,
-              color: isSelected ? game.accentColor : Colors.white54,
             ),
           ],
         ),
