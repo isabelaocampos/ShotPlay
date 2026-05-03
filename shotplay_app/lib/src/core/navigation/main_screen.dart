@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shotplay_app/src/features/sala_espera/ui/screens/sala_espera_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../routing/app_routes.dart';
@@ -34,12 +35,15 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   late final List<Widget> _screens = [
-    const Center(
-      child: Text(
-        'Inicio',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    ),
+    const SalaEsperaScreen(), // Meanwhile, this is only for show the waiting room screen
+
+    // const Center(
+    //   child: Text(
+    //     'Inicio',
+    //     style: TextStyle(color: Colors.white, fontSize: 24),
+    //   ),
+    // ),
+    
     const Center(
       child: Text(
         'Juegos',
@@ -52,10 +56,7 @@ class _MainScreenState extends State<MainScreen> {
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
-    BlocProvider(
-      create: (_) => ProfileBloc(),
-      child: const ProfileScreen(),
-    ),
+    BlocProvider(create: (_) => ProfileBloc(), child: const ProfileScreen()),
   ];
 
   static const List<_NavItem> _navItems = [
@@ -73,23 +74,21 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(
-              color: AppTheme.primary.withOpacity(0.2),
-              width: 1,
-            ),
+            top: BorderSide(color: AppTheme.primary.withOpacity(0.2), width: 1),
           ),
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          items: _navItems
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  label: item.label,
-                ),
-              )
-              .toList(),
+          items:
+              _navItems
+                  .map(
+                    (item) => BottomNavigationBarItem(
+                      icon: Icon(item.icon),
+                      label: item.label,
+                    ),
+                  )
+                  .toList(),
           selectedLabelStyle: GoogleFonts.spaceGrotesk(
             fontSize: 10,
             fontWeight: FontWeight.w600,

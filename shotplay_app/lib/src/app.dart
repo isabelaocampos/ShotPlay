@@ -9,6 +9,7 @@ import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
 import 'features/signup/ui/bloc/signup_bloc.dart';
 import 'features/signup/ui/screens/signup_screen.dart';
+import 'features/sala_espera/ui/screens/sala_espera_screen.dart';
 
 /// Root widget of the application.
 ///
@@ -37,6 +38,7 @@ class ShotPlayApp extends StatelessWidget {
               child: const SignupScreen(),
             ),
         AppRoutes.home: (_) => const MainScreen(),
+        AppRoutes.waitingRoom: (_) => const SalaEsperaScreen(),
       },
     );
   }
