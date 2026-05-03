@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../common_widgets/app_bottom_navigation_bar.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
 import 'game_catalog_controller.dart';
@@ -17,7 +16,11 @@ class _GameCatalogScreenState extends State<GameCatalogScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Use Future.microtask so the first notifyListeners() inside loadGames()
+    // fires after the full build pipeline has completed, avoiding the
+    // "setState called during build" error.
+    Future.microtask(() {
+      if (!mounted) return;
       context.read<GameCatalogController>().loadGames();
     });
   }
@@ -47,13 +50,6 @@ class _GameCatalogScreenState extends State<GameCatalogScreen> {
         child: SafeArea(
           child: _buildBody(context, controller),
         ),
-      ),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: 1,
-        onHomeTap: () {},
-        onGamesTap: () {},
-        onSocialTap: () {},
-        onProfileTap: () {},
       ),
     );
   }

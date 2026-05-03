@@ -27,6 +27,7 @@ class LocalRoomRepository implements RoomRepository {
     }
 
     final room = RoomSession(
+      idRoom: roomCode,
       roomCode: roomCode,
       adminId: adminId,
       gameId: gameId,

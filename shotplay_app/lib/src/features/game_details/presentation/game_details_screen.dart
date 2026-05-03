@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_bottom_navigation_bar.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
 
@@ -179,13 +178,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: 1,
-        onHomeTap: () {},
-        onGamesTap: () {},
-        onSocialTap: () {},
-        onProfileTap: () {},
       ),
     );
   }

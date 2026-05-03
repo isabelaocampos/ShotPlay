@@ -1,17 +1,17 @@
-// Smoke test placeholder. Replace with feature-specific tests
-// (auth, game catalog, create room, waiting room) as the app grows.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-void main() {
-  testWidgets('renders placeholder smoke widget', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: Center(child: Text('ShotPlay'))),
-      ),
-    );
+import 'package:shotplay_app/src/app.dart';
+import 'package:shotplay_app/src/data/repositories/local_game_repository.dart';
+import 'package:shotplay_app/src/data/repositories/local_room_repository.dart';
 
-    expect(find.text('ShotPlay'), findsOneWidget);
+void main() {
+  testWidgets('App smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(const ShotPlayApp(
+      roomRepository: LocalRoomRepository(),
+      gameRepository: LocalGameRepository(),
+      currentAdminId: 'demo-admin',
+    ));
+
+    expect(find.byType(ShotPlayApp), findsOneWidget);
   });
 }

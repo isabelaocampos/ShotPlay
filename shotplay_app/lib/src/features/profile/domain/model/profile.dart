@@ -29,12 +29,13 @@ class Profile {
   }
 
   Map<String, dynamic> toJson() {
+    // Only include columns that exist in the 'profiles' table schema.
+    // 'email' lives in auth.users, not here.
+    // 'games_played' is not yet tracked in the schema.
     return {
       'id': id,
       'username': username,
-      'email': email,
       'role': role,
-      'games_played': gamesPlayed,
     };
   }
 }
