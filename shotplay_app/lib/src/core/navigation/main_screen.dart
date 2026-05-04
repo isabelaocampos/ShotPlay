@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shotplay_app/src/features/sala_espera/ui/screens/sala_espera_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../routing/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../../features/game_catalog/presentation/game_catalog_screen.dart';
 import '../../features/profile/ui/bloc/profile_bloc.dart';
 import '../../features/profile/ui/screens/profile_screen.dart';
 
@@ -35,21 +35,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   late final List<Widget> _screens = [
-    const SalaEsperaScreen(), // Meanwhile, this is only for show the waiting room screen
-
-    // const Center(
-    //   child: Text(
-    //     'Inicio',
-    //     style: TextStyle(color: Colors.white, fontSize: 24),
-    //   ),
-    // ),
-    
     const Center(
       child: Text(
-        'Juegos',
+        'Inicio',
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
+    const GameCatalogScreen(),
     const Center(
       child: Text(
         'Social',

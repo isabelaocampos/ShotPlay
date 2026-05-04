@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Global visual design tokens and theme configuration for ShotPlay.
-///
-/// All color, typography, and component decisions live here so that
-/// every screen inherits a consistent look without duplicating style code.
 abstract class AppTheme {
-  // Brand palette
+  // Brand palette — reference these in screens instead of hardcoding hex values.
   static const Color background = Color(0xFF16111C);
   static const Color surface = Color(0xFF1E1925);
   static const Color surfaceVariant = Color(0xFF221D29);
@@ -19,6 +16,7 @@ abstract class AppTheme {
 
   static ThemeData get dark {
     final base = ThemeData.dark(useMaterial3: true);
+
     return base.copyWith(
       scaffoldBackgroundColor: background,
       colorScheme: const ColorScheme.dark(
@@ -32,14 +30,75 @@ abstract class AppTheme {
         bodyColor: textPrimary,
         displayColor: textPrimary,
       ),
+      cardTheme: CardThemeData(
+        color: surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        margin: EdgeInsets.zero,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleTextStyle: GoogleFonts.spaceGrotesk(
-          color: primary,
+          color: textPrimary,
           fontSize: 18,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: onPrimary,
+          minimumSize: const Size.fromHeight(54),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: Colors.white.withOpacity(0.14)),
+          minimumSize: const Size.fromHeight(54),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary.withOpacity(0.45)
+              : Colors.white24,
+        ),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary
+              : Colors.white70,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surfaceVariant,
+        hintStyle: TextStyle(color: Colors.white.withOpacity(0.42)),
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: primary, width: 1.3),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
