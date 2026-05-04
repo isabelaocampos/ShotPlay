@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,7 +17,8 @@ Future<void> main() async {
   GoogleFonts.config.allowRuntimeFetching = true;
   FlutterError.onError = (details) {
     final msg = details.exception.toString();
-    if (msg.contains('fonts.gstatic.com') || msg.contains('Failed host lookup')) {
+    if (msg.contains('fonts.gstatic.com') ||
+        msg.contains('Failed host lookup')) {
       return;
     }
     FlutterError.presentError(details);
@@ -33,21 +32,11 @@ Future<void> main() async {
 
   final dependencies = await _buildAppDependencies();
 
-  runZonedGuarded(
-    () => runApp(
-      ShotPlayApp(
-        roomRepository: dependencies.roomRepository,
-        gameRepository: dependencies.gameRepository,
-      ),
+  runApp(
+    ShotPlayApp(
+      roomRepository: dependencies.roomRepository,
+      gameRepository: dependencies.gameRepository,
     ),
-    (error, stack) {
-      final msg = error.toString();
-      if (msg.contains('fonts.gstatic.com') || msg.contains('Failed host lookup')) {
-        return;
-      }
-      // ignore: avoid_print
-      print('Uncaught error: $error\n$stack');
-    },
   );
 }
 

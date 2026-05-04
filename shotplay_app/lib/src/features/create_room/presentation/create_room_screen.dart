@@ -19,53 +19,63 @@ class CreateRoomScreen extends StatefulWidget {
 
 class _CreateRoomScreenState extends State<CreateRoomScreen> {
   late final TextEditingController _roomNameController;
-  bool _initializedGame = false;
+  late final CreateRoomController _controller;
 
   @override
   void initState() {
     super.initState();
     _roomNameController = TextEditingController(text: 'Ej: Los Guerreros del Cubalibre');
-  }
+    _controller = context.read<CreateRoomController>();
+    _controller.addListener(_handleControllerUpdate);
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_initializedGame) {
-      return;
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
 
-    context.read<CreateRoomController>().selectGame(widget.selectedGame);
-    _initializedGame = true;
+      _controller.initialize(widget.selectedGame);
+    });
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerUpdate);
     _roomNameController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final controller = context.watch<CreateRoomController>();
+  void _handleControllerUpdate() {
+    if (!mounted) {
+      return;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final errorMessage = controller.errorMessage;
-      if (errorMessage != null && mounted) {
+      if (!mounted) {
+        return;
+      }
+
+      final errorMessage = _controller.errorMessage;
+      if (errorMessage != null) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(SnackBar(content: Text(errorMessage)));
-        controller.clearErrorMessage();
+        _controller.clearErrorMessage();
       }
 
-      final createdRoom = controller.createdRoom;
-      if (!controller.isLoading && createdRoom != null && mounted) {
-        controller.clearCreatedRoom();
+      final createdRoom = _controller.createdRoom;
+      if (!_controller.isLoading && createdRoom != null) {
+        _controller.clearCreatedRoom();
         Navigator.of(context).pushReplacementNamed(
           AppRoutes.waitingRoom,
           arguments: createdRoom,
         );
       }
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<CreateRoomController>();
 
     return Scaffold(
       extendBody: true,

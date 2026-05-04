@@ -7,27 +7,36 @@ import '../../../domain/repositories/room_repository.dart';
 
 class CreateRoomController extends ChangeNotifier {
   CreateRoomController({required RoomRepository roomRepository})
-      : _roomRepository = roomRepository,
-        _selectedGame = defaultGameOptions.first;
+      : _roomRepository = roomRepository;
 
   final RoomRepository _roomRepository;
 
-  GameOption _selectedGame;
+  GameOption? _selectedGame;
   int _maxPlayers = 6;
   bool _isPrivateRoom = false;
   bool _isFastMode = false;
   bool _isLoading = false;
   String? _errorMessage;
   RoomSession? _createdRoom;
+  bool _isInitialized = false;
 
   List<GameOption> get availableGames => defaultGameOptions;
-  GameOption get selectedGame => _selectedGame;
+  GameOption get selectedGame => _selectedGame ?? defaultGameOptions.first;
   int get maxPlayers => _maxPlayers;
   bool get isPrivateRoom => _isPrivateRoom;
   bool get isFastMode => _isFastMode;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   RoomSession? get createdRoom => _createdRoom;
+
+  void initialize(GameOption initialGame) {
+    if (_isInitialized) {
+      return;
+    }
+
+    _isInitialized = true;
+    _applySelectedGame(initialGame);
+  }
 
   void clearCreatedRoom() {
     _createdRoom = null;
@@ -38,16 +47,19 @@ class CreateRoomController extends ChangeNotifier {
   }
 
   void selectGame(GameOption game) {
-    _selectedGame = game;
-    _maxPlayers = _maxPlayers.clamp(game.minPlayers, game.maxPlayers);
-    notifyListeners();
+    if (_selectedGame?.gameDbId == game.gameDbId) {
+      return;
+    }
+
+    _applySelectedGame(game);
   }
 
   void updateMaxPlayers(int value) {
-    final clamped = value.clamp(_selectedGame.minPlayers, _selectedGame.maxPlayers);
+    final currentGame = selectedGame;
+    final clamped = value.clamp(currentGame.minPlayers, currentGame.maxPlayers);
     if (clamped != value) {
       _errorMessage =
-          'Para ${_selectedGame.title}, elige entre ${_selectedGame.minPlayers} y ${_selectedGame.maxPlayers} jugadores.';
+          'Para ${currentGame.title}, elige entre ${currentGame.minPlayers} y ${currentGame.maxPlayers} jugadores.';
     }
     _maxPlayers = clamped;
     notifyListeners();
@@ -84,7 +96,7 @@ class CreateRoomController extends ChangeNotifier {
         try {
           final room = await _roomRepository.createRoom(
             roomCode: roomCode,
-            gameId: _selectedGame.gameDbId,
+            gameId: selectedGame.gameDbId,
             maxPlayers: _maxPlayers,
             isPrivate: _isPrivateRoom,
             roomName: sanitizedName,
@@ -117,6 +129,12 @@ class CreateRoomController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     _isLoading = value;
+    notifyListeners();
+  }
+
+  void _applySelectedGame(GameOption game) {
+    _selectedGame = game;
+    _maxPlayers = _maxPlayers.clamp(game.minPlayers, game.maxPlayers);
     notifyListeners();
   }
 }
