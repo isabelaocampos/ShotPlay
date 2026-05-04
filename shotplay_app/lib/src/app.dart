@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'core/navigation/main_screen.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';
@@ -10,7 +9,8 @@ import 'features/login/ui/screens/login_screen.dart';
 import 'features/signup/ui/bloc/signup_bloc.dart';
 import 'features/signup/ui/screens/signup_screen.dart';
 import 'features/sala_espera/ui/screens/sala_espera_screen.dart';
-import 'features/detalle_juego/ui/screens/detalle_juego_screen.dart';
+import 'features/ingresar_codigo/ui/bloc/ingresar_codigo_bloc.dart';
+import 'features/ingresar_codigo/ui/screens/ingresar_codigo_screen.dart';
 
 /// Root widget of the application.
 ///
@@ -27,7 +27,7 @@ class ShotPlayApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'ShotPlay',
       theme: AppTheme.dark,
-      initialRoute: AppRoutes.waitingRoom,
+      initialRoute: AppRoutes.ingresarCodigo,
       routes: {
         AppRoutes.welcome: (_) => const WelcomeScreen(),
         AppRoutes.login: (_) => BlocProvider(
@@ -40,7 +40,10 @@ class ShotPlayApp extends StatelessWidget {
             ),
         AppRoutes.home: (_) => const MainScreen(),
         AppRoutes.waitingRoom: (_) => const SalaEsperaScreen(),
-        AppRoutes.gameDetail: (_) => const DetalleDelJuegoScreen(),
+        AppRoutes.ingresarCodigo: (_) => BlocProvider(
+              create: (_) => IngresarCodigoBloc(),
+              child: const IngresoCodigoScreen(),
+            ),
       },
     );
   }
