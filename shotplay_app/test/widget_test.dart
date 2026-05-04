@@ -9,7 +9,6 @@ void main() {
     await tester.pumpWidget(const ShotPlayApp(
       roomRepository: LocalRoomRepository(),
       gameRepository: LocalGameRepository(),
-      currentAdminId: 'demo-admin',
     ));
 
     expect(find.byType(ShotPlayApp), findsOneWidget);

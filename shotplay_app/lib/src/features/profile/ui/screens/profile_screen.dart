@@ -63,13 +63,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       // ── Header ───────────────────────────────────────────
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                color: Colors.white60, size: 20),
-                          ),
                           Text(
                             'SHOTPLAY',
                             style: GoogleFonts.spaceGrotesk(
@@ -79,7 +74,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               letterSpacing: -1,
                             ),
                           ),
-                          const SizedBox(width: 48), // Spacer for balance
                         ],
                       ),
                       const SizedBox(height: 32),

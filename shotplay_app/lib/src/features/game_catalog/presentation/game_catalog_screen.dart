@@ -29,6 +29,7 @@ class _GameCatalogScreenState extends State<GameCatalogScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[

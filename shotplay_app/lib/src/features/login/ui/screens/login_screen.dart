@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shotplay_app/src/features/login/ui/bloc/login_bloc.dart';
+import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/features/login/ui/sections/login_footer.dart';
 import 'package:shotplay_app/src/features/login/ui/sections/login_form_section.dart';
 import 'package:shotplay_app/src/features/login/ui/sections/login_header.dart';
@@ -18,7 +19,7 @@ class LoginScreen extends StatelessWidget {
     return BlocListener<LoginBloc, LoginState>(
       listener: (context, state) {
         if (state is LoginSuccessState) {
-          Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
         } else if (state is LoginFailState) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(state.message)));

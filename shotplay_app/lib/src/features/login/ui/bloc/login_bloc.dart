@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shotplay_app/src/features/auth/domain/usecases/login_usecase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract class LoginEvent {}
 
@@ -32,8 +33,28 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         await _loginUsecase.execute(event.email, event.password);
         emit(LoginSuccessState());
       } catch (e) {
-        emit(LoginFailState(e.toString()));
+        emit(LoginFailState(_mapAuthError(e)));
       }
     });
+  }
+
+  String _mapAuthError(Object error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid credentials') ||
+          msg.contains('email not confirmed') && msg.contains('password')) {
+        return 'Correo o contraseña incorrectos.';
+      }
+      if (msg.contains('email not confirmed')) {
+        return 'Debes confirmar tu correo electrónico antes de iniciar sesión.';
+      }
+      if (msg.contains('too many requests') || msg.contains('rate limit')) {
+        return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
+      }
+      // Fallback: use Supabase's message directly (it's usually readable)
+      return error.message;
+    }
+    return 'Ocurrió un error inesperado. Intenta de nuevo.';
   }
 }
