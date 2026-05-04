@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
+import '../../ingresar_codigo/ui/bloc/ingresar_codigo_bloc.dart';
+import '../../ingresar_codigo/ui/screens/ingresar_codigo_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   const GameDetailsScreen({super.key, this.initialGame});
@@ -19,6 +22,21 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   void initState() {
     super.initState();
     _selectedGame = widget.initialGame ?? defaultGameOptions.first;
+  }
+
+  void _showJoinRoomModal(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF191022),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => BlocProvider(
+        create: (_) => IngresarCodigoBloc(),
+        child: IngresoCodigoScreen(gameName: _selectedGame.title),
+      ),
+    );
   }
 
   @override
@@ -105,13 +123,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   label: 'Unirse a sala',
                   icon: Icons.login_rounded,
                   isSecondary: true,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Unirse a sala todavía no está conectado.'),
-                      ),
-                    );
-                  },
+                  onTap: () => _showJoinRoomModal(context),
                 ),
               ],
             ),

@@ -58,13 +58,18 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     try {
       Profile? profile = await _getProfile.execute(event.userId);
 
-      // If no profile row exists yet, build one from the auth session data
+      // If no profile row exists yet, build a fallback from auth session data.
+      // The username is stored in userMetadata during signup (key: 'username').
       if (profile == null) {
         final authUser = Supabase.instance.client.auth.currentUser;
         if (authUser != null) {
+          final metadataUsername =
+              authUser.userMetadata?['username'] as String?;
           profile = Profile(
             id: authUser.id,
-            username: authUser.email?.split('@').first ?? 'Usuario',
+            username: metadataUsername?.trim().isNotEmpty == true
+                ? metadataUsername!
+                : authUser.email?.split('@').first ?? 'Usuario',
             email: authUser.email ?? '',
             role: 'player',
           );
@@ -72,6 +77,17 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       }
 
       if (profile != null) {
+        // If viewing our own profile, ensure email comes from the auth session
+        final authUser = Supabase.instance.client.auth.currentUser;
+        if (authUser != null && authUser.id == event.userId) {
+          profile = Profile(
+            id: profile.id,
+            username: profile.username,
+            email: authUser.email ?? profile.email,
+            role: profile.role,
+            gamesPlayed: profile.gamesPlayed,
+          );
+        }
         emit(ProfileLoaded(profile));
       } else {
         emit(const ProfileError('No se encontró el perfil del usuario.'));

@@ -19,8 +19,6 @@ import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
 import 'features/signup/ui/bloc/signup_bloc.dart';
 import 'features/signup/ui/screens/signup_screen.dart';
-import 'features/ingresar_codigo/ui/bloc/ingresar_codigo_bloc.dart';
-import 'features/ingresar_codigo/ui/screens/ingresar_codigo_screen.dart';
 import 'features/waiting_room/presentation/waiting_room_screen.dart';
 
 class ShotPlayApp extends StatelessWidget {
@@ -61,10 +59,6 @@ class ShotPlayApp extends StatelessWidget {
                 create: (_) =>
                     GameCatalogController(gameRepository: gameRepository),
                 child: const MainScreen(),
-              ),
-          AppRoutes.enterCode: (_) => BlocProvider(
-                create: (_) => IngresarCodigoBloc(),
-                child: const IngresoCodigoScreen(),
               ),
         },
         onGenerateRoute: (settings) {
