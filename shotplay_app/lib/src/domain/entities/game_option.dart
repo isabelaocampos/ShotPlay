@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import '../../core/resources/app_images.dart';
 
 class GameOption {
@@ -13,10 +11,7 @@ class GameOption {
     required this.minPlayers,
     required this.maxPlayers,
     required this.durationMinutes,
-    required this.icon,
     required this.imagePath,
-    required this.accentColor,
-    required this.secondaryColor,
   });
 
   final String id;
@@ -32,10 +27,7 @@ class GameOption {
   final int minPlayers;
   final int maxPlayers;
   final int durationMinutes;
-  final IconData icon;
   final String imagePath;
-  final Color accentColor;
-  final Color secondaryColor;
 
   String get playersLabel => '$minPlayers-$maxPlayers personas';
 
@@ -79,10 +71,7 @@ const defaultGameOptions = <GameOption>[
     minPlayers: 2,
     maxPlayers: 6,
     durationMinutes: 20,
-    icon: Icons.view_module_rounded,
     imagePath: AppImages.snakesLadders,
-    accentColor: Color(0xFF4CD7C0),
-    secondaryColor: Color(0xFFF9A03F),
   ),
   GameOption(
     id: 'impostor',
@@ -95,9 +84,6 @@ const defaultGameOptions = <GameOption>[
     minPlayers: 5,
     maxPlayers: 10,
     durationMinutes: 15,
-    icon: Icons.groups_rounded,
     imagePath: AppImages.impostor,
-    accentColor: Color(0xFF8E7BFF),
-    secondaryColor: Color(0xFF4BC6FF),
   ),
 ];

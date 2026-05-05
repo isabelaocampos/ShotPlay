@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../routing/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../../features/game_catalog/presentation/game_catalog_screen.dart';
+import '../../features/profile/domain/repository/profile_repository.dart';
+import '../../features/profile/domain/usecases/get_profile_usecase.dart';
 import '../../features/profile/ui/bloc/profile_bloc.dart';
 import '../../features/profile/ui/screens/profile_screen.dart';
 
@@ -48,7 +50,12 @@ class _MainScreenState extends State<MainScreen> {
         style: TextStyle(color: Colors.white, fontSize: 24),
       ),
     ),
-    BlocProvider(create: (_) => ProfileBloc(), child: const ProfileScreen()),
+    BlocProvider(
+      create: (ctx) => ProfileBloc(
+        GetProfileUsecase(ctx.read<ProfileRepository>()),
+      ),
+      child: const ProfileScreen(),
+    ),
   ];
 
   static const List<_NavItem> _navItems = [

@@ -1,5 +1,5 @@
-import 'package:shotplay_app/src/features/auth/data/sources/auth_data_source.dart';
-import 'package:shotplay_app/src/features/auth/domain/repo/auth_repo.dart';
+import 'package:shotplay_app/src/features/auth/data/source/auth_data_source.dart';
+import 'package:shotplay_app/src/features/auth/domain/repository/auth_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthRepoImpl extends AuthRepo {

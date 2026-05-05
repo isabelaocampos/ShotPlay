@@ -32,9 +32,9 @@ class SignupFailState extends SignupState {
 class SignupLoadingState extends SignupState {}
 
 class SignupBloc extends Bloc<SignupEvent, SignupState> {
-  final SignupUsecase _usecase = SignupUsecase();
+  final SignupUsecase _usecase;
 
-  SignupBloc() : super(SignupIdleState()) {
+  SignupBloc(this._usecase) : super(SignupIdleState()) {
     on<SignupSubmitEvent>(_signup);
   }
 

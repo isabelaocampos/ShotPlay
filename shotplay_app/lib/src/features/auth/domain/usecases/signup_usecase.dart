@@ -1,12 +1,12 @@
-import 'package:shotplay_app/src/features/auth/data/repo/auth_repo_impl.dart';
-import 'package:shotplay_app/src/features/auth/domain/repo/auth_repo.dart';
-import 'package:shotplay_app/src/features/profile/data/repository/profile_repository_impl.dart';
+import 'package:shotplay_app/src/features/auth/domain/repository/auth_repo.dart';
 import 'package:shotplay_app/src/features/profile/domain/model/profile.dart';
 import 'package:shotplay_app/src/features/profile/domain/repository/profile_repository.dart';
 
 class SignupUsecase {
-  final AuthRepo _authRepo = AuthRepoImpl();
-  final ProfileRepository _profileRepo = ProfileRepositoryImpl();
+  final AuthRepo _authRepo;
+  final ProfileRepository _profileRepo;
+
+  const SignupUsecase(this._authRepo, this._profileRepo);
 
   Future<void> execute(
     String username,

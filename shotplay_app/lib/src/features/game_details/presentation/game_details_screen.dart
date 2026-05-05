@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
-import '../../ingresar_codigo/ui/bloc/ingresar_codigo_bloc.dart';
-import '../../ingresar_codigo/ui/screens/ingresar_codigo_screen.dart';
+import '../../enter_code/data/repository/enter_code_repository_impl.dart';
+import '../../enter_code/domain/usecases/get_enter_code_user_usecase.dart';
+import '../../enter_code/ui/bloc/enter_code_bloc.dart';
+import '../../enter_code/ui/screens/enter_code_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   const GameDetailsScreen({super.key, this.initialGame});
@@ -33,8 +35,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => BlocProvider(
-        create: (_) => IngresarCodigoBloc(),
-        child: IngresoCodigoScreen(gameName: _selectedGame.title),
+        create: (_) => EnterCodeBloc(
+          GetEnterCodeUserUsecase(EnterCodeRepositoryImpl()),
+        ),
+        child: EnterCodeScreen(gameName: _selectedGame.title),
       ),
     );
   }

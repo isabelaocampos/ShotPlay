@@ -24,9 +24,9 @@ class LoginFailState extends LoginState {
 }
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  final LoginUsecase _loginUsecase = LoginUsecase();
+  final LoginUsecase _loginUsecase;
 
-  LoginBloc() : super(LoginInitialState()) {
+  LoginBloc(this._loginUsecase) : super(LoginInitialState()) {
     on<LoginSubmitEvent>((event, emit) async {
       emit(LoginLoadingState());
       try {

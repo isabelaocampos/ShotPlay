@@ -4,14 +4,15 @@ import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/room_player.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../domain/usecases/watch_room_players_usecase.dart';
 
 enum WaitingRoomStatus { initial, loading, waiting, error }
 
 class WaitingRoomController extends ChangeNotifier {
   WaitingRoomController({required RoomRepository roomRepository})
-      : _roomRepository = roomRepository;
+      : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository);
 
-  final RoomRepository _roomRepository;
+  final WatchRoomPlayersUsecase _watchPlayersUsecase;
   StreamSubscription<List<RoomPlayer>>? _subscription;
 
   WaitingRoomStatus _status = WaitingRoomStatus.initial;
@@ -28,9 +29,9 @@ class WaitingRoomController extends ChangeNotifier {
     notifyListeners();
 
     _subscription?.cancel();
-    _subscription = _roomRepository.watchRoomPlayers(roomCode).listen(
+    _subscription = _watchPlayersUsecase.execute(roomCode).listen(
       (incoming) {
-        final sorted = [...incoming]..sort((a, b) {
+        final sorted = <RoomPlayer>[...incoming]..sort((a, b) {
             if (a.isHost != b.isHost) return a.isHost ? -1 : 1;
             return a.username.compareTo(b.username);
           });

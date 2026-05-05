@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shotplay_app/src/features/ingresar_codigo/ui/bloc/ingresar_codigo_bloc.dart';
+import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Bottom-sheet modal that lets a user enter a 4-character room code.
 ///
 /// Receives [gameName] from the calling screen so the header title is dynamic
 /// instead of hardcoded to a specific game.
-class IngresoCodigoScreen extends StatefulWidget {
-  const IngresoCodigoScreen({super.key, required this.gameName});
+class EnterCodeScreen extends StatefulWidget {
+  const EnterCodeScreen({super.key, required this.gameName});
 
   /// Name of the game the user selected (e.g. "Escaleras y Serpientes").
   final String gameName;
 
   @override
-  State<IngresoCodigoScreen> createState() => _IngresoCodigoScreenState();
+  State<EnterCodeScreen> createState() => _EnterCodeScreenState();
 }
 
-class _IngresoCodigoScreenState extends State<IngresoCodigoScreen> {
+class _EnterCodeScreenState extends State<EnterCodeScreen> {
   final List<TextEditingController> _controllers =
       List.generate(4, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
@@ -33,7 +33,7 @@ class _IngresoCodigoScreenState extends State<IngresoCodigoScreen> {
     super.initState();
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
-      context.read<IngresarCodigoBloc>().add(IngresarCodigoLoadRequested(userId));
+      context.read<EnterCodeBloc>().add(EnterCodeLoadRequested(userId));
     }
   }
 
@@ -260,10 +260,10 @@ class _IngresoCodigoScreenState extends State<IngresoCodigoScreen> {
   }
 
   Widget _buildPlayerChip() {
-    return BlocBuilder<IngresarCodigoBloc, IngresarCodigoState>(
+    return BlocBuilder<EnterCodeBloc, EnterCodeState>(
       builder: (context, state) {
         final String chipUsername =
-            state is IngresarCodigoLoaded ? state.user.username : 'Usuario';
+            state is EnterCodeLoaded ? state.user.username : 'Usuario';
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

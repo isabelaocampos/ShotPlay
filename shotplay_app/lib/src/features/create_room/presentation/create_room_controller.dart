@@ -4,12 +4,13 @@ import '../../../core/utils/room_code_generator.dart';
 import '../../../domain/entities/game_option.dart';
 import '../../../domain/entities/room_session.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../domain/usecases/create_room_usecase.dart';
 
 class CreateRoomController extends ChangeNotifier {
   CreateRoomController({required RoomRepository roomRepository})
-      : _roomRepository = roomRepository;
+      : _createRoomUsecase = CreateRoomUsecase(roomRepository);
 
-  final RoomRepository _roomRepository;
+  final CreateRoomUsecase _createRoomUsecase;
 
   GameOption? _selectedGame;
   int _maxPlayers = 6;
@@ -94,7 +95,7 @@ class CreateRoomController extends ChangeNotifier {
         final roomCode = RoomCodeGenerator.generate();
 
         try {
-          final room = await _roomRepository.createRoom(
+          final room = await _createRoomUsecase.execute(
             roomCode: roomCode,
             gameId: selectedGame.gameDbId,
             maxPlayers: _maxPlayers,

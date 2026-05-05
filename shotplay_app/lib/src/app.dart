@@ -10,6 +10,9 @@ import 'domain/entities/game_option.dart';
 import 'domain/entities/room_session.dart';
 import 'domain/repositories/game_repository.dart';
 import 'domain/repositories/room_repository.dart';
+import 'features/auth/data/repository/auth_repo_impl.dart';
+import 'features/auth/domain/usecases/login_usecase.dart';
+import 'features/auth/domain/usecases/signup_usecase.dart';
 import 'features/auth/ui/screens/welcome_screen.dart';
 import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
@@ -17,6 +20,8 @@ import 'features/game_catalog/presentation/game_catalog_controller.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
 import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
+import 'features/profile/data/repository/profile_repository_impl.dart';
+import 'features/profile/domain/repository/profile_repository.dart';
 import 'features/signup/ui/bloc/signup_bloc.dart';
 import 'features/signup/ui/screens/signup_screen.dart';
 import 'features/waiting_room/presentation/waiting_room_screen.dart';
@@ -33,8 +38,11 @@ class ShotPlayApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<RoomRepository>.value(
-      value: roomRepository,
+    return MultiProvider(
+      providers: [
+        Provider<RoomRepository>.value(value: roomRepository),
+        Provider<ProfileRepository>(create: (_) => ProfileRepositoryImpl()),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'ShotPlay',
@@ -43,11 +51,15 @@ class ShotPlayApp extends StatelessWidget {
         routes: {
           AppRoutes.welcome: (_) => const WelcomeScreen(),
           AppRoutes.login: (_) => BlocProvider(
-                create: (_) => LoginBloc(),
+                create: (_) => LoginBloc(
+                  LoginUsecase(AuthRepoImpl()),
+                ),
                 child: LoginScreen(),
               ),
           AppRoutes.signup: (_) => BlocProvider(
-                create: (_) => SignupBloc(),
+                create: (_) => SignupBloc(
+                  SignupUsecase(AuthRepoImpl(), ProfileRepositoryImpl()),
+                ),
                 child: const SignupScreen(),
               ),
           AppRoutes.home: (_) => ChangeNotifierProvider(

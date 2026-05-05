@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/game_option.dart';
 import '../../../domain/repositories/game_repository.dart';
+import '../domain/usecases/get_available_games_usecase.dart';
 
 enum GameCatalogStatus { initial, loading, loaded, error }
 
 class GameCatalogController extends ChangeNotifier {
   GameCatalogController({required GameRepository gameRepository})
-      : _gameRepository = gameRepository;
+      : _getGamesUsecase = GetAvailableGamesUsecase(gameRepository);
 
-  final GameRepository _gameRepository;
+  final GetAvailableGamesUsecase _getGamesUsecase;
 
   GameCatalogStatus _status = GameCatalogStatus.initial;
   List<GameOption> _games = const <GameOption>[];
@@ -29,7 +30,7 @@ class GameCatalogController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final games = await _gameRepository.getAvailableGames();
+      final games = await _getGamesUsecase.execute();
       _games = games;
       _status = GameCatalogStatus.loaded;
     } on GameRepositoryException catch (error) {

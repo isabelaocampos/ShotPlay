@@ -1,10 +1,10 @@
-import 'package:shotplay_app/src/features/ingresar_codigo/domain/model/ingresar_codigo_user.dart';
+import 'package:shotplay_app/src/features/enter_code/domain/model/enter_code_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class IngresarCodigoDataSource {
+class EnterCodeDataSource {
   final SupabaseClient _client = Supabase.instance.client;
 
-  Future<IngresarCodigoUser?> getIngresarCodigoUser(String userId) async {
+  Future<EnterCodeUser?> getEnterCodeUser(String userId) async {
     final data = await _client
         .from('profiles')
         .select()
@@ -14,6 +14,6 @@ class IngresarCodigoDataSource {
     if (data == null) return null;
     final username = data['username'] as String?;
     if (username == null || username.isEmpty) return null;
-    return IngresarCodigoUser(username: username);
+    return EnterCodeUser(username: username);
   }
 }
