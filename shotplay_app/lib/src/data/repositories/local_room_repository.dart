@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
+import '../../core/constants/room_code_constants.dart';
 import '../../domain/entities/room_player.dart';
 import '../../domain/entities/room_session.dart';
 import '../../domain/repositories/room_repository.dart';
@@ -22,15 +25,17 @@ class LocalRoomRepository implements RoomRepository {
     required bool isPrivate,
     required String roomName,
   }) async {
-    if (_rooms.containsKey(roomCode)) {
+    final normalizedCode = RoomCodeConstants.normalize(roomCode);
+
+    if (_rooms.containsKey(normalizedCode)) {
       throw RoomCodeCollisionException();
     }
 
-    final localAdminId = 'local-admin-$roomCode';
+    final localAdminId = 'local-admin-$normalizedCode';
 
     final room = RoomSession(
       idRoom: _nextRoomId++,
-      roomCode: roomCode,
+      roomCode: normalizedCode,
       adminId: localAdminId,
       gameId: gameId,
       maxPlayers: maxPlayers,
@@ -38,40 +43,114 @@ class LocalRoomRepository implements RoomRepository {
       isPrivate: isPrivate,
     );
 
-    _rooms[roomCode] = room;
-    _players[roomCode] = <RoomPlayer>[
+    _rooms[normalizedCode] = room;
+    _players[normalizedCode] = <RoomPlayer>[
       RoomPlayer(
-        id: '$roomCode-host',
-        roomCode: roomCode,
+        id: '$normalizedCode-host',
+        roomCode: normalizedCode,
         userId: localAdminId,
         username: 'Anfitrión',
         isHost: true,
         isReady: true,
       ),
     ];
-    _emit(roomCode);
+    _emit(normalizedCode);
 
     await Future<void>.delayed(const Duration(milliseconds: 550));
     return room;
   }
 
   @override
+  Future<RoomSession> joinRoom({
+    required String roomCode,
+    int? expectedGameId,
+  }) async {
+    final normalizedCode = RoomCodeConstants.normalize(roomCode);
+    if (!RoomCodeConstants.isValid(normalizedCode)) {
+      throw RoomRepositoryException('El código debe tener 6 caracteres.');
+    }
+
+    final room = _rooms[normalizedCode];
+    if (room == null) {
+      debugPrint('[ROOM] Room not found (local): $normalizedCode');
+      throw RoomNotFoundException();
+    }
+
+    if (expectedGameId != null && room.gameId != expectedGameId) {
+      throw RoomGameMismatchException();
+    }
+
+    final players = _players.putIfAbsent(normalizedCode, () => <RoomPlayer>[]);
+    const joinerId = 'local-guest';
+    final alreadyJoined =
+        players.any((player) => player.userId == joinerId);
+
+    if (alreadyJoined) {
+      debugPrint('[ROOM] User already in room (local): $normalizedCode');
+      return room;
+    }
+
+    if (players.length >= room.maxPlayers) {
+      debugPrint('[ROOM] Room full (local): $normalizedCode');
+      throw RoomFullException();
+    }
+
+    players.add(
+      RoomPlayer(
+        id: '$normalizedCode-$joinerId',
+        roomCode: normalizedCode,
+        userId: joinerId,
+        username: 'Invitado',
+        isHost: false,
+        isReady: true,
+      ),
+    );
+    _emit(normalizedCode);
+
+    debugPrint('[ROOM] Joined room successfully (local): $normalizedCode');
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return room;
+  }
+
+  @override
+  Future<List<RoomPlayer>> fetchRoomPlayers(String roomCode) async {
+    final normalizedCode = RoomCodeConstants.normalize(roomCode);
+    final players = _players[normalizedCode] ?? const <RoomPlayer>[];
+    debugPrint(
+      '[PARTICIPANTS] Fetched ${players.length} player(s) (local) for $normalizedCode',
+    );
+    return List<RoomPlayer>.unmodifiable(players);
+  }
+
+  @override
   Stream<List<RoomPlayer>> watchRoomPlayers(String roomCode) {
+    final normalizedCode = RoomCodeConstants.normalize(roomCode);
     final controller = _controllers.putIfAbsent(
-      roomCode,
+      normalizedCode,
       () => StreamController<List<RoomPlayer>>.broadcast(),
     );
 
     scheduleMicrotask(() {
-      controller.add(List.unmodifiable(_players[roomCode] ?? const []));
+      controller.add(
+        List<RoomPlayer>.unmodifiable(
+          _players[normalizedCode] ?? const <RoomPlayer>[],
+        ),
+      );
     });
 
     return controller.stream;
   }
 
   void _emit(String roomCode) {
-    final controller = _controllers[roomCode];
+    final normalizedCode = RoomCodeConstants.normalize(roomCode);
+    final controller = _controllers[normalizedCode];
     if (controller == null || controller.isClosed) return;
-    controller.add(List.unmodifiable(_players[roomCode] ?? const []));
+    final snapshot = List<RoomPlayer>.unmodifiable(
+      _players[normalizedCode] ?? const <RoomPlayer>[],
+    );
+    debugPrint(
+      '[PARTICIPANTS] Local stream emit: ${snapshot.length} player(s)',
+    );
+    controller.add(snapshot);
   }
 }

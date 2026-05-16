@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'src/app.dart';
+import 'src/data/repositories/local_game_event_repository.dart';
 import 'src/data/repositories/local_game_repository.dart';
 import 'src/data/repositories/local_room_repository.dart';
+import 'src/data/repositories/supabase_game_event_repository.dart';
 import 'src/data/repositories/supabase_game_repository.dart';
 import 'src/data/repositories/supabase_room_repository.dart';
+import 'src/domain/repositories/game_event_repository.dart';
 import 'src/domain/repositories/game_repository.dart';
 import 'src/domain/repositories/room_repository.dart';
 
@@ -36,6 +39,7 @@ Future<void> main() async {
     ShotPlayApp(
       roomRepository: dependencies.roomRepository,
       gameRepository: dependencies.gameRepository,
+      gameEventRepository: dependencies.gameEventRepository,
     ),
   );
 }
@@ -55,12 +59,14 @@ Future<_AppDependencies> _buildAppDependencies() async {
     return _AppDependencies(
       roomRepository: SupabaseRoomRepository(client),
       gameRepository: SupabaseGameRepository(client),
+      gameEventRepository: SupabaseGameEventRepository(client),
     );
   }
 
-  return const _AppDependencies(
-    roomRepository: LocalRoomRepository(),
-    gameRepository: LocalGameRepository(),
+  return _AppDependencies(
+    roomRepository: const LocalRoomRepository(),
+    gameRepository: const LocalGameRepository(),
+    gameEventRepository: LocalGameEventRepository(),
   );
 }
 
@@ -68,8 +74,10 @@ class _AppDependencies {
   const _AppDependencies({
     required this.roomRepository,
     required this.gameRepository,
+    required this.gameEventRepository,
   });
 
   final RoomRepository roomRepository;
   final GameRepository gameRepository;
+  final GameEventRepository gameEventRepository;
 }

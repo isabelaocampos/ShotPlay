@@ -8,6 +8,7 @@ import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/entities/game_option.dart';
 import 'domain/entities/room_session.dart';
+import 'domain/repositories/game_event_repository.dart';
 import 'domain/repositories/game_repository.dart';
 import 'domain/repositories/room_repository.dart';
 import 'features/auth/data/repository/auth_repo_impl.dart';
@@ -31,16 +32,19 @@ class ShotPlayApp extends StatelessWidget {
     super.key,
     required this.roomRepository,
     required this.gameRepository,
+    required this.gameEventRepository,
   });
 
   final RoomRepository roomRepository;
   final GameRepository gameRepository;
+  final GameEventRepository gameEventRepository;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         Provider<RoomRepository>.value(value: roomRepository),
+        Provider<GameEventRepository>.value(value: gameEventRepository),
         Provider<ProfileRepository>(create: (_) => ProfileRepositoryImpl()),
       ],
       child: MaterialApp(

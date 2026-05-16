@@ -4,16 +4,42 @@ import 'package:flutter/foundation.dart';
 
 import '../../../domain/entities/room_player.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../domain/lobby_event_types.dart';
+import '../domain/usecases/connect_room_game_events_usecase.dart';
+import '../domain/usecases/disconnect_room_game_events_usecase.dart';
+import '../domain/usecases/emit_lobby_sync_usecase.dart';
+import '../domain/usecases/fetch_room_players_usecase.dart';
+import '../domain/usecases/watch_game_events_usecase.dart';
 import '../domain/usecases/watch_room_players_usecase.dart';
 
 enum WaitingRoomStatus { initial, loading, waiting, error }
 
 class WaitingRoomController extends ChangeNotifier {
-  WaitingRoomController({required RoomRepository roomRepository})
-      : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository);
+  WaitingRoomController({
+    required RoomRepository roomRepository,
+    required ConnectRoomGameEventsUsecase connectGameEvents,
+    required DisconnectRoomGameEventsUsecase disconnectGameEvents,
+    required WatchGameEventsUsecase watchGameEvents,
+    required FetchRoomPlayersUsecase fetchRoomPlayers,
+    required EmitLobbySyncUsecase emitLobbySync,
+  })  : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository),
+        _fetchRoomPlayers = fetchRoomPlayers,
+        _connectGameEvents = connectGameEvents,
+        _disconnectGameEvents = disconnectGameEvents,
+        _watchGameEvents = watchGameEvents,
+        _emitLobbySync = emitLobbySync;
 
   final WatchRoomPlayersUsecase _watchPlayersUsecase;
-  StreamSubscription<List<RoomPlayer>>? _subscription;
+  final FetchRoomPlayersUsecase _fetchRoomPlayers;
+  final ConnectRoomGameEventsUsecase _connectGameEvents;
+  final DisconnectRoomGameEventsUsecase _disconnectGameEvents;
+  final WatchGameEventsUsecase _watchGameEvents;
+  final EmitLobbySyncUsecase _emitLobbySync;
+
+  StreamSubscription<List<RoomPlayer>>? _playersSubscription;
+  StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
+  Timer? _refreshDebounce;
+  String? _roomCode;
 
   WaitingRoomStatus _status = WaitingRoomStatus.initial;
   List<RoomPlayer> _players = const <RoomPlayer>[];
@@ -23,23 +49,71 @@ class WaitingRoomController extends ChangeNotifier {
   List<RoomPlayer> get players => _players;
   String? get errorMessage => _errorMessage;
 
-  void watchPlayers(String roomCode) {
+  Future<void> start(String roomCode) async {
+    _roomCode = roomCode;
     _status = WaitingRoomStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
-    _subscription?.cancel();
-    _subscription = _watchPlayersUsecase.execute(roomCode).listen(
+    debugPrint('[LOBBY] Starting waiting room for $roomCode');
+
+    await _connectPubSub(roomCode);
+    await _refreshPlayers(roomCode);
+    _subscribeToPostgresStream(roomCode);
+
+    try {
+      await _emitLobbySync.execute();
+      debugPrint('[LOBBY] Broadcast lobby.sync for $roomCode');
+    } catch (e) {
+      debugPrint('[LOBBY] Could not emit lobby.sync: $e');
+    }
+  }
+
+  Future<void> _connectPubSub(String roomCode) async {
+    try {
+      debugPrint('[PUBSUB] Connecting to channel for room: $roomCode');
+      await _connectGameEvents.execute(roomCode);
+      debugPrint('[PUBSUB] Subscription success for room: $roomCode');
+
+      await _eventsSubscription?.cancel();
+      _eventsSubscription = _watchGameEvents.execute().listen(
+        _onLobbyEvent,
+        onError: (Object error) {
+          debugPrint('[PUBSUB] Stream error: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('[PUBSUB] Connection failed: $e');
+      _errorMessage = 'No pudimos conectar al canal en tiempo real.';
+      _status = WaitingRoomStatus.error;
+      notifyListeners();
+    }
+  }
+
+  void _onLobbyEvent(Map<String, dynamic> event) {
+    debugPrint('[PUBSUB] Event received: $event');
+
+    final type = event['type'] as String?;
+    if (type != LobbyEventTypes.sync) return;
+
+    final roomCode = _roomCode;
+    if (roomCode == null) return;
+
+    debugPrint('[LOBBY] lobby.sync received — scheduling participant refresh');
+    _scheduleRefresh(roomCode);
+  }
+
+  void _subscribeToPostgresStream(String roomCode) {
+    _playersSubscription?.cancel();
+    _playersSubscription = _watchPlayersUsecase.execute(roomCode).listen(
       (incoming) {
-        final sorted = <RoomPlayer>[...incoming]..sort((a, b) {
-            if (a.isHost != b.isHost) return a.isHost ? -1 : 1;
-            return a.username.compareTo(b.username);
-          });
-        _players = sorted;
-        _status = WaitingRoomStatus.waiting;
-        notifyListeners();
+        debugPrint(
+          '[PARTICIPANTS] Postgres stream delivered ${incoming.length} player(s)',
+        );
+        _applyPlayers(incoming);
       },
-      onError: (_) {
+      onError: (Object error) {
+        debugPrint('[PARTICIPANTS] Postgres stream error: $error');
         _errorMessage = 'No pudimos sincronizar los jugadores.';
         _status = WaitingRoomStatus.error;
         notifyListeners();
@@ -47,9 +121,48 @@ class WaitingRoomController extends ChangeNotifier {
     );
   }
 
+  void _scheduleRefresh(String roomCode) {
+    _refreshDebounce?.cancel();
+    _refreshDebounce = Timer(
+      const Duration(milliseconds: 250),
+      () => unawaited(_refreshPlayers(roomCode)),
+    );
+  }
+
+  Future<void> _refreshPlayers(String roomCode) async {
+    try {
+      debugPrint('[PARTICIPANTS] Refreshing lobby for $roomCode');
+      final incoming = await _fetchRoomPlayers.execute(roomCode);
+      _applyPlayers(incoming);
+    } catch (e) {
+      debugPrint('[PARTICIPANTS] Refresh failed: $e');
+      _errorMessage = 'No pudimos cargar los jugadores.';
+      _status = WaitingRoomStatus.error;
+      notifyListeners();
+    }
+  }
+
+  void _applyPlayers(List<RoomPlayer> incoming) {
+    final sorted = <RoomPlayer>[...incoming]..sort((a, b) {
+        if (a.isHost != b.isHost) return a.isHost ? -1 : 1;
+        return a.username.compareTo(b.username);
+      });
+    _players = sorted;
+    _status = WaitingRoomStatus.waiting;
+    debugPrint(
+      '[LOBBY] UI updated — ${sorted.length} player(s): '
+      '${sorted.map((p) => p.username).join(', ')}',
+    );
+    notifyListeners();
+  }
+
   @override
   void dispose() {
-    _subscription?.cancel();
+    debugPrint('[LOBBY] Disposing waiting room controller');
+    _refreshDebounce?.cancel();
+    _playersSubscription?.cancel();
+    _eventsSubscription?.cancel();
+    unawaited(_disconnectGameEvents.execute());
     super.dispose();
   }
 }

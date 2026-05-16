@@ -11,9 +11,39 @@ abstract class RoomRepository {
   });
 
   Stream<List<RoomPlayer>> watchRoomPlayers(String roomCode);
+
+  /// One-shot fetch of current participants (used for lobby refresh).
+  Future<List<RoomPlayer>> fetchRoomPlayers(String roomCode);
+
+  /// Looks up a room by code, adds the current user as a participant, and
+  /// returns the session. [expectedGameId] optionally validates the room game.
+  Future<RoomSession> joinRoom({
+    required String roomCode,
+    int? expectedGameId,
+  });
 }
 
 class RoomCodeCollisionException implements Exception {}
+
+class RoomNotFoundException implements Exception {
+  @override
+  String toString() => 'No existe una sala con ese código.';
+}
+
+class RoomFullException implements Exception {
+  @override
+  String toString() => 'La sala está llena.';
+}
+
+class RoomGameMismatchException implements Exception {
+  @override
+  String toString() => 'Este código pertenece a otro juego.';
+}
+
+class AlreadyInRoomException implements Exception {
+  @override
+  String toString() => 'Ya estás en esta sala.';
+}
 
 class NotAuthenticatedException implements Exception {
   @override

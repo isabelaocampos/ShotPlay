@@ -9,7 +9,13 @@ import '../../../core/ui/game_option_ui.dart';
 import '../../../domain/entities/game_option.dart';
 import '../../../domain/entities/room_player.dart';
 import '../../../domain/entities/room_session.dart';
+import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../domain/usecases/connect_room_game_events_usecase.dart';
+import '../domain/usecases/disconnect_room_game_events_usecase.dart';
+import '../domain/usecases/emit_lobby_sync_usecase.dart';
+import '../domain/usecases/fetch_room_players_usecase.dart';
+import '../domain/usecases/watch_game_events_usecase.dart';
 import 'waiting_room_controller.dart';
 
 class WaitingRoomScreen extends StatelessWidget {
@@ -25,9 +31,17 @@ class WaitingRoomScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<WaitingRoomController>(
-      create: (ctx) => WaitingRoomController(
-        roomRepository: ctx.read<RoomRepository>(),
-      )..watchPlayers(room.roomCode),
+      create: (ctx) {
+        final gameEvents = ctx.read<GameEventRepository>();
+        return WaitingRoomController(
+          roomRepository: ctx.read<RoomRepository>(),
+          connectGameEvents: ConnectRoomGameEventsUsecase(gameEvents),
+          disconnectGameEvents: DisconnectRoomGameEventsUsecase(gameEvents),
+          watchGameEvents: WatchGameEventsUsecase(gameEvents),
+          fetchRoomPlayers: FetchRoomPlayersUsecase(ctx.read<RoomRepository>()),
+          emitLobbySync: EmitLobbySyncUsecase(gameEvents),
+        )..start(room.roomCode);
+      },
       child: _WaitingRoomView(room: room, isAdmin: isAdmin),
     );
   }

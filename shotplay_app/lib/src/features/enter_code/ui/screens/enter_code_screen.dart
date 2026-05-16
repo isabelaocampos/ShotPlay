@@ -2,31 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shotplay_app/src/core/constants/room_code_constants.dart';
+import 'package:shotplay_app/src/core/routing/app_routes.dart';
+import 'package:shotplay_app/src/core/utils/upper_case_text_formatter.dart';
 import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Bottom-sheet modal that lets a user enter a 4-character room code.
-///
-/// Receives [gameName] from the calling screen so the header title is dynamic
-/// instead of hardcoded to a specific game.
+/// Bottom-sheet modal that lets a user enter a 6-character room code.
 class EnterCodeScreen extends StatefulWidget {
-  const EnterCodeScreen({super.key, required this.gameName});
+  const EnterCodeScreen({
+    super.key,
+    required this.gameName,
+    this.expectedGameId,
+  });
 
-  /// Name of the game the user selected (e.g. "Escaleras y Serpientes").
   final String gameName;
+  final int? expectedGameId;
 
   @override
   State<EnterCodeScreen> createState() => _EnterCodeScreenState();
 }
 
 class _EnterCodeScreenState extends State<EnterCodeScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  static const int _codeLength = RoomCodeConstants.length;
+
+  final List<TextEditingController> _controllers = List.generate(
+    _codeLength,
+    (_) => TextEditingController(),
+  );
+  final List<FocusNode> _focusNodes = List.generate(
+    _codeLength,
+    (_) => FocusNode(),
+  );
 
   String get _fullCode => _controllers.map((c) => c.text).join();
 
-  bool get _isComplete => _fullCode.length == 4;
+  bool get _isComplete => RoomCodeConstants.isValid(_fullCode);
 
   @override
   void initState() {
@@ -49,7 +60,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
   }
 
   void _onKeyChanged(int index, String value) {
-    if (value.isNotEmpty && index < 3) {
+    if (value.isNotEmpty && index < _codeLength - 1) {
       _focusNodes[index + 1].requestFocus();
     }
     if (value.isEmpty && index > 0) {
@@ -60,69 +71,91 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
 
   void _joinRoom() {
     if (!_isComplete) return;
-    // TODO: connect to waiting room with _fullCode
-    Navigator.of(context).pop();
+
+    context.read<EnterCodeBloc>().add(
+          EnterCodeJoinRequested(
+            roomCode: RoomCodeConstants.normalize(_fullCode),
+            expectedGameId: widget.expectedGameId,
+          ),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ── Drag handle ─────────────────────────────────────────────────
-        Container(
-          margin: const EdgeInsets.only(top: 12, bottom: 8),
-          width: 36,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.white24,
-            borderRadius: BorderRadius.circular(99),
-          ),
-        ),
+    return BlocListener<EnterCodeBloc, EnterCodeState>(
+      listener: (context, state) {
+        if (state is EnterCodeJoinSuccess) {
+          final navigator = Navigator.of(context);
+          navigator.pop();
+          navigator.pushNamed(
+            AppRoutes.waitingRoom,
+            arguments: state.room,
+          );
+        } else if (state is EnterCodeError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+      },
+      child: BlocBuilder<EnterCodeBloc, EnterCodeState>(
+        builder: (context, state) {
+          final joining = state is EnterCodeJoining;
 
-        // ── Game name header ────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                widget.gameName,
-                style: GoogleFonts.spaceGrotesk(
-                  color: const Color(0xFFF1F5F9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.4,
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const Icon(Icons.ios_share, color: Color(0xFFF1F5F9), size: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.gameName,
+                      style: GoogleFonts.spaceGrotesk(
+                        color: const Color(0xFFF1F5F9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const Icon(Icons.ios_share,
+                        color: Color(0xFFF1F5F9), size: 20),
+                  ],
+                ),
+              ),
+              const Divider(color: Color(0x197F0DF2), height: 16),
+              Padding(
+                padding: EdgeInsets.only(
+                  top: 24,
+                  left: 24,
+                  right: 24,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+                ),
+                child: Column(
+                  children: [
+                    _buildTitleSection(),
+                    const SizedBox(height: 32),
+                    _buildCodeInputs(joining: joining),
+                    const SizedBox(height: 32),
+                    _buildJoinButton(joining: joining),
+                    const SizedBox(height: 24),
+                    _buildPlayerChip(),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-
-        const Divider(color: Color(0x197F0DF2), height: 16),
-
-        // ── Content ─────────────────────────────────────────────────────
-        Padding(
-          padding: EdgeInsets.only(
-            top: 24,
-            left: 24,
-            right: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-          ),
-          child: Column(
-            children: [
-              _buildTitleSection(),
-              const SizedBox(height: 32),
-              _buildCodeInputs(),
-              const SizedBox(height: 32),
-              _buildJoinButton(),
-              const SizedBox(height: 24),
-              _buildPlayerChip(),
-            ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
@@ -141,7 +174,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          'Ingresa el código de 4 dígitos que te\ncompartió tu amigo',
+          'Ingresa el código de 6 caracteres que te\ncompartió tu amigo',
           textAlign: TextAlign.center,
           style: GoogleFonts.spaceGrotesk(
             color: const Color(0xFF94A3B8),
@@ -154,28 +187,36 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
     );
   }
 
-  Widget _buildCodeInputs() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(4, (index) {
-        final bool isFocused = _focusNodes[index].hasFocus;
-        final bool hasValue = _controllers[index].text.isNotEmpty;
+  Widget _buildCodeInputs({required bool joining}) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(_codeLength, (index) {
+          final bool isFocused = _focusNodes[index].hasFocus;
+          final bool hasValue = _controllers[index].text.isNotEmpty;
 
-        return Padding(
-          padding: EdgeInsets.only(right: index < 3 ? 16 : 0),
-          child: _buildSingleInput(index, isFocused, hasValue),
-        );
-      }),
+          return Padding(
+            padding: EdgeInsets.only(right: index < _codeLength - 1 ? 10 : 0),
+            child: _buildSingleInput(index, isFocused, hasValue, joining: joining),
+          );
+        }),
+      ),
     );
   }
 
-  Widget _buildSingleInput(int index, bool isFocused, bool hasValue) {
+  Widget _buildSingleInput(
+    int index,
+    bool isFocused,
+    bool hasValue, {
+    required bool joining,
+  }) {
     return Container(
-      width: 64,
-      height: 76,
+      width: 48,
+      height: 64,
       decoration: BoxDecoration(
         color: const Color(0x4C1E293B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isFocused
               ? const Color(0xFFA40EEA)
@@ -199,13 +240,15 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
           maxLength: 1,
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
+          enabled: !joining,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+            UpperCaseTextFormatter(),
             LengthLimitingTextInputFormatter(1),
           ],
           style: GoogleFonts.spaceGrotesk(
             color: hasValue ? const Color(0xFFA40EEA) : const Color(0xFF334155),
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: FontWeight.w700,
           ),
           decoration: const InputDecoration(
@@ -219,20 +262,22 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
     );
   }
 
-  Widget _buildJoinButton() {
+  Widget _buildJoinButton({required bool joining}) {
+    final enabled = _isComplete && !joining;
+
     return GestureDetector(
-      onTap: _isComplete ? _joinRoom : null,
+      onTap: enabled ? _joinRoom : null,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: _isComplete
+          color: enabled
               ? const Color(0xFFA40EEA)
               : const Color(0xFFA40EEA).withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: _isComplete
-              ? [
-                  const BoxShadow(
+          boxShadow: enabled
+              ? const [
+                  BoxShadow(
                     color: Color(0x337F0DF2),
                     blurRadius: 15,
                     offset: Offset(0, 6),
@@ -243,16 +288,29 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (joining) ...[
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             Text(
-              'Unirse a la sala',
+              joining ? 'Uniéndose...' : 'Unirse a la sala',
               style: GoogleFonts.spaceGrotesk(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+            if (!joining) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+            ],
           ],
         ),
       ),
@@ -262,8 +320,11 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
   Widget _buildPlayerChip() {
     return BlocBuilder<EnterCodeBloc, EnterCodeState>(
       builder: (context, state) {
-        final String chipUsername =
-            state is EnterCodeLoaded ? state.user.username : 'Usuario';
+        final String chipUsername = switch (state) {
+          EnterCodeLoaded(:final user) => user.username,
+          EnterCodeJoining(:final user) => user.username,
+          _ => 'Usuario',
+        };
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
