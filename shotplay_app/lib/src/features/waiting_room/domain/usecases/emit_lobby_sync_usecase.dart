@@ -7,7 +7,7 @@ class EmitLobbySyncUsecase {
   final GameEventRepository _repository;
 
   Future<void> execute() => _repository.emitEvent(<String, dynamic>{
-        'type': LobbyEventTypes.sync,
+        'appEventType': LobbyEventTypes.sync,
         'payload': <String, dynamic>{},
       });
 }

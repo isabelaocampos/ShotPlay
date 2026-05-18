@@ -10,6 +10,6 @@ class EmitGameStartUsecase {
   final GameEventRepository _repository;
 
   Future<void> execute() => _repository.emitEvent(<String, dynamic>{
-        'type': GameEventTypes.gameStart,
+        'appEventType': GameEventTypes.gameStart,
       });
 }

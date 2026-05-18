@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shotplay_app/src/features/game_board/domain/entities/board_entities.dart';
 import 'package:shotplay_app/src/features/game_board/domain/game_board_event_types.dart';
+import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_roll_event_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/start_game_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/watch_game_board_events_usecase.dart';
@@ -27,7 +28,7 @@ class GameBoardController extends ChangeNotifier {
     required List<RoomPlayer> players,
   })  : _gameEvents = gameEvents,
         _startGame = StartGameUsecase(gameEvents),
-        _rollDice = RollDiceUsecase(gameEvents),
+        _rollDice = RollDiceUsecase(EmitDiceRollEventUsecase(gameEvents)),
         _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
         _players = players {
     _eventsSubscription = _watchEvents.execute().listen(_onEvent);
@@ -88,7 +89,7 @@ class GameBoardController extends ChangeNotifier {
   Future<void> requestSync() async {
     if (isAdmin) return;
     try {
-      await _gameEvents.emitEvent({'type': GameEventTypes.gameSync});
+      await _gameEvents.emitEvent({'appEventType': GameEventTypes.gameSync});
       debugPrint('[BOARD] sync request enviado');
     } catch (e) {
       debugPrint('[BOARD] requestSync error: $e');
@@ -116,7 +117,7 @@ class GameBoardController extends ChangeNotifier {
   // ── Event listener ───────────────────────────────────────────────
 
   void _onEvent(Map<String, dynamic> event) {
-    final type = event['type'] as String?;
+    final type = event['appEventType'] as String?;
 
     // Estado completo del juego recibido (game.start o game.dice_roll)
     if (type == GameBoardEventTypes.gameStart ||
@@ -138,7 +139,7 @@ class GameBoardController extends ChangeNotifier {
     if (type == GameEventTypes.gameSync && isAdmin && _gameState != null) {
       debugPrint('[BOARD] sync request recibido — re-emitiendo estado');
       _gameEvents.emitEvent({
-        'type': GameBoardEventTypes.gameStart,
+        'appEventType': GameBoardEventTypes.gameStart,
         ..._gameState!.toJson(),
       }).catchError((e) {
         debugPrint('[BOARD] re-emit error: $e');

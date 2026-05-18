@@ -23,7 +23,7 @@ class StartGameUsecase {
     final state = GameState.initial(positions);
 
     await _gameEvents.emitEvent({
-      'type': GameBoardEventTypes.gameStart,
+      'appEventType': GameBoardEventTypes.gameStart,
       ...state.toJson(),
     });
 

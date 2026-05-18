@@ -51,6 +51,7 @@ class WaitingRoomController extends ChangeNotifier {
   List<RoomPlayer> _players = const <RoomPlayer>[];
   String? _errorMessage;
   bool _gameStarted = false;
+  bool _navigatingToBoard = false;
 
   WaitingRoomStatus get status => _status;
   List<RoomPlayer> get players => _players;
@@ -58,6 +59,12 @@ class WaitingRoomController extends ChangeNotifier {
   bool get gameStarted => _gameStarted;
 
   // ── Public actions ──────────────────────────────────────────────
+
+  /// Previene que el canal de realtime se desconecte si destruimos
+  /// esta pantalla para ir al tablero de juego (reutilizaremos la conexión).
+  void markAsNavigatingToBoard() {
+    _navigatingToBoard = true;
+  }
 
   /// El admin llama a esto. Emite game.start por el canal Supabase
   /// para que TODOS los jugadores suscritos naveguen al tablero.
@@ -114,7 +121,7 @@ class WaitingRoomController extends ChangeNotifier {
   void _onLobbyEvent(Map<String, dynamic> event) {
     debugPrint('[PUBSUB] Event received: $event');
 
-    final type = event['type'] as String?;
+    final type = event['appEventType'] as String?;
 
     // El admin inició la partida — todos navegan al tablero
     if (type == GameEventTypes.gameStart) {
@@ -192,7 +199,12 @@ class WaitingRoomController extends ChangeNotifier {
     _refreshDebounce?.cancel();
     _playersSubscription?.cancel();
     _eventsSubscription?.cancel();
-    unawaited(_disconnectGameEvents.execute());
+    if (!_navigatingToBoard) {
+      debugPrint('[LOBBY] Not navigating to board, disconnecting pubsub');
+      unawaited(_disconnectGameEvents.execute());
+    } else {
+      debugPrint('[LOBBY] Keeping pubsub connection alive for board');
+    }
     super.dispose();
   }
 }

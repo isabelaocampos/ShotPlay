@@ -67,6 +67,7 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
   void _goToBoard(WaitingRoomController controller) {
     if (_navigated) return;
     _navigated = true;
+    controller.markAsNavigatingToBoard();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(

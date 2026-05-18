@@ -110,6 +110,42 @@ class GameState {
     );
   }
 
+  /// Calculates the next state after rolling the dice.
+  /// Applies movements, ladders, snakes, and advances the turn.
+  GameState applyDiceRoll(int diceValue) {
+    if (positions.isEmpty) return this;
+
+    final updatedPositions = positions.map((p) {
+      if (p.playerId != currentTurnPlayerId) return p;
+
+      int newSquare = (p.square + diceValue).clamp(1, 49);
+
+      // Apply snake
+      if (BoardDefinition.snakes.containsKey(newSquare)) {
+        newSquare = BoardDefinition.snakes[newSquare]!;
+      }
+      // Apply ladder
+      else if (BoardDefinition.ladders.containsKey(newSquare)) {
+        newSquare = BoardDefinition.ladders[newSquare]!;
+      }
+
+      return p.copyWith(square: newSquare);
+    }).toList();
+
+    // Advance turn to the next player
+    final playerIds = positions.map((p) => p.playerId).toList();
+    final currentIndex = playerIds.indexOf(currentTurnPlayerId);
+    final nextIndex = (currentIndex + 1) % playerIds.length;
+    final nextPlayerId = playerIds[nextIndex];
+
+    return copyWith(
+      positions: updatedPositions,
+      currentTurnPlayerId: nextPlayerId,
+      lastDiceValue: diceValue,
+      shotsTakenByCurrentPlayer: 0,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'positions': positions
             .map((p) => {

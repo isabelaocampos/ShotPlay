@@ -62,8 +62,6 @@ class _GameBoardView extends StatefulWidget {
 }
 
 class _GameBoardViewState extends State<_GameBoardView> {
-  static const double _maxWidth = 440;
-
   @override
   void initState() {
     super.initState();
@@ -86,30 +84,35 @@ class _GameBoardViewState extends State<_GameBoardView> {
     final gameState = controller.gameState;
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _maxWidth),
-          child: Container(
-            color: const Color(0xFF191022),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  _TopBar(roomCode: widget.room.roomCode),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[Color(0xFF140B22), Color(0xFF09070F)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _TopBar(roomCode: widget.room.roomCode),
 
-                  if (gameState != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                      child: BoardStatusBar(
-                        gameState: gameState,
-                        currentTurnUsername: controller.currentTurnUsername,
-                        myPosition: controller.myPosition,
-                      ),
-                    ),
+              if (gameState != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: BoardStatusBar(
+                    gameState: gameState,
+                    currentTurnUsername: controller.currentTurnUsername,
+                    myPosition: controller.myPosition,
+                  ),
+                ),
 
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -157,9 +160,9 @@ class _GameBoardViewState extends State<_GameBoardView> {
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
