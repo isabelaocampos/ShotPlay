@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/constants/game_event_types.dart';
 import '../../../domain/entities/room_player.dart';
+import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
 import '../domain/lobby_event_types.dart';
 import '../domain/usecases/connect_room_game_events_usecase.dart';
 import '../domain/usecases/disconnect_room_game_events_usecase.dart';
+import '../domain/usecases/emit_game_start_usecase.dart';
 import '../domain/usecases/emit_lobby_sync_usecase.dart';
 import '../domain/usecases/fetch_room_players_usecase.dart';
 import '../domain/usecases/watch_game_events_usecase.dart';
@@ -22,12 +25,14 @@ class WaitingRoomController extends ChangeNotifier {
     required WatchGameEventsUsecase watchGameEvents,
     required FetchRoomPlayersUsecase fetchRoomPlayers,
     required EmitLobbySyncUsecase emitLobbySync,
+    required EmitGameStartUsecase emitGameStart,
   })  : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository),
         _fetchRoomPlayers = fetchRoomPlayers,
         _connectGameEvents = connectGameEvents,
         _disconnectGameEvents = disconnectGameEvents,
         _watchGameEvents = watchGameEvents,
-        _emitLobbySync = emitLobbySync;
+        _emitLobbySync = emitLobbySync,
+        _emitGameStart = emitGameStart;
 
   final WatchRoomPlayersUsecase _watchPlayersUsecase;
   final FetchRoomPlayersUsecase _fetchRoomPlayers;
@@ -35,6 +40,7 @@ class WaitingRoomController extends ChangeNotifier {
   final DisconnectRoomGameEventsUsecase _disconnectGameEvents;
   final WatchGameEventsUsecase _watchGameEvents;
   final EmitLobbySyncUsecase _emitLobbySync;
+  final EmitGameStartUsecase _emitGameStart;
 
   StreamSubscription<List<RoomPlayer>>? _playersSubscription;
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
@@ -44,10 +50,25 @@ class WaitingRoomController extends ChangeNotifier {
   WaitingRoomStatus _status = WaitingRoomStatus.initial;
   List<RoomPlayer> _players = const <RoomPlayer>[];
   String? _errorMessage;
+  bool _gameStarted = false;
 
   WaitingRoomStatus get status => _status;
   List<RoomPlayer> get players => _players;
   String? get errorMessage => _errorMessage;
+  bool get gameStarted => _gameStarted;
+
+  // ── Public actions ──────────────────────────────────────────────
+
+  /// El admin llama a esto. Emite game.start por el canal Supabase
+  /// para que TODOS los jugadores suscritos naveguen al tablero.
+  Future<void> emitGameStart() async {
+    try {
+      await _emitGameStart.execute();
+      debugPrint('[LOBBY] game.start emitido correctamente');
+    } catch (e) {
+      debugPrint('[LOBBY] Error emitiendo game.start: $e');
+    }
+  }
 
   Future<void> start(String roomCode) async {
     _roomCode = roomCode;
@@ -94,6 +115,15 @@ class WaitingRoomController extends ChangeNotifier {
     debugPrint('[PUBSUB] Event received: $event');
 
     final type = event['type'] as String?;
+
+    // El admin inició la partida — todos navegan al tablero
+    if (type == GameEventTypes.gameStart) {
+      debugPrint('[LOBBY] game.start received — navigating to board');
+      _gameStarted = true;
+      notifyListeners();
+      return;
+    }
+
     if (type != LobbyEventTypes.sync) return;
 
     final roomCode = _roomCode;

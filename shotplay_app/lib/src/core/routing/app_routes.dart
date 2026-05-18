@@ -12,4 +12,5 @@ class AppRoutes {
   static const String gameDetails = '/game-details';
   static const String configureRoom = '/configure-room';
   static const String waitingRoom = '/waiting-room';
+  static const String gameBoard = '/game-board';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:shotplay_app/src/domain/entities/room_player.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/navigation/main_screen.dart';
@@ -25,6 +26,7 @@ import 'features/profile/data/repository/profile_repository_impl.dart';
 import 'features/profile/domain/repository/profile_repository.dart';
 import 'features/signup/ui/bloc/signup_bloc.dart';
 import 'features/signup/ui/screens/signup_screen.dart';
+import 'features/game_board/ui/screens/game_board_screen.dart';
 import 'features/waiting_room/presentation/waiting_room_screen.dart';
 
 class ShotPlayApp extends StatelessWidget {
@@ -104,6 +106,18 @@ class ShotPlayApp extends StatelessWidget {
               return MaterialPageRoute<void>(
                 settings: settings,
                 builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
+              );
+            case AppRoutes.gameBoard:
+              final args =
+                  settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => GameBoardScreen(
+                  room: args['room'] as RoomSession,
+                  players: (args['players'] as List<dynamic>)
+                      .cast<RoomPlayer>(),
+                  isAdmin: args['isAdmin'] as bool,
+                ),
               );
             default:
               return null;

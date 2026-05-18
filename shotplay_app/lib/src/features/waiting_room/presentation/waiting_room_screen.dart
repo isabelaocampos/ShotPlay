@@ -13,6 +13,7 @@ import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
 import '../domain/usecases/connect_room_game_events_usecase.dart';
 import '../domain/usecases/disconnect_room_game_events_usecase.dart';
+import '../domain/usecases/emit_game_start_usecase.dart';
 import '../domain/usecases/emit_lobby_sync_usecase.dart';
 import '../domain/usecases/fetch_room_players_usecase.dart';
 import '../domain/usecases/watch_game_events_usecase.dart';
@@ -40,6 +41,7 @@ class WaitingRoomScreen extends StatelessWidget {
           watchGameEvents: WatchGameEventsUsecase(gameEvents),
           fetchRoomPlayers: FetchRoomPlayersUsecase(ctx.read<RoomRepository>()),
           emitLobbySync: EmitLobbySyncUsecase(gameEvents),
+          emitGameStart: EmitGameStartUsecase(gameEvents),
         )..start(room.roomCode);
       },
       child: _WaitingRoomView(room: room, isAdmin: isAdmin),
@@ -47,16 +49,46 @@ class WaitingRoomScreen extends StatelessWidget {
   }
 }
 
-class _WaitingRoomView extends StatelessWidget {
+// ── Convertido a StatefulWidget para poder reaccionar a gameStarted ──
+
+class _WaitingRoomView extends StatefulWidget {
   const _WaitingRoomView({required this.room, required this.isAdmin});
 
   final RoomSession room;
   final bool isAdmin;
 
   @override
+  State<_WaitingRoomView> createState() => _WaitingRoomViewState();
+}
+
+class _WaitingRoomViewState extends State<_WaitingRoomView> {
+  bool _navigated = false;
+
+  void _goToBoard(WaitingRoomController controller) {
+    if (_navigated) return;
+    _navigated = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed(
+        AppRoutes.gameBoard,
+        arguments: {
+          'room': widget.room,
+          'players': controller.players,
+          'isAdmin': widget.isAdmin,
+        },
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final controller = context.watch<WaitingRoomController>();
-    final game = gameOptionFromDbId(room.gameId);
+    final game = gameOptionFromDbId(widget.room.gameId);
+
+    // Cuando llega game.start por realtime, TODOS navegan al tablero
+    if (controller.gameStarted) {
+      _goToBoard(controller);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -82,25 +114,28 @@ class _WaitingRoomView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _RoomCodeCard(room: room, game: game),
+                _RoomCodeCard(room: widget.room, game: game),
                 const SizedBox(height: 16),
                 _PlayersHeader(
                   current: controller.players.length,
-                  total: room.maxPlayers,
+                  total: widget.room.maxPlayers,
                 ),
                 const SizedBox(height: 12),
                 _PlayersSection(
                   controller: controller,
-                  total: room.maxPlayers,
+                  total: widget.room.maxPlayers,
                   hostAccent: game.accentColor,
                 ),
                 const SizedBox(height: 18),
                 _TipsCard(),
                 const SizedBox(height: 18),
-                if (isAdmin)
+                if (widget.isAdmin)
                   PrimaryButton(
                     label: 'INICIAR PARTIDA',
-                    onPressed: controller.players.length >= 2 ? () {} : null,
+                    // Solo activo con >= 2 jugadores
+                    onPressed: controller.players.length >= 2
+                        ? () => _startGame(controller)
+                        : null,
                   )
                 else
                   Text(
@@ -129,8 +164,20 @@ class _WaitingRoomView extends StatelessWidget {
     );
   }
 
+  /// El admin emite game.start por el canal → todos (incluido el admin)
+  /// reciben el evento y navegan vía _goToBoard.
+  Future<void> _startGame(WaitingRoomController controller) async {
+    await controller.emitGameStart();
+    // Esperamos 800ms para que Supabase entregue el broadcast
+    // al no-admin ANTES de que el admin destruya el canal al navegar.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (mounted && !_navigated) {
+      _goToBoard(controller);
+    }
+  }
+
   Future<void> _shareCode(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: room.roomCode));
+    await Clipboard.setData(ClipboardData(text: widget.room.roomCode));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Código copiado al portapapeles.')),
@@ -138,6 +185,8 @@ class _WaitingRoomView extends StatelessWidget {
     }
   }
 }
+
+// ── Widgets de soporte (sin cambios) ──────────────────────────────
 
 class _RoomCodeCard extends StatelessWidget {
   const _RoomCodeCard({required this.room, required this.game});
@@ -204,8 +253,8 @@ class _RoomCodeCard extends StatelessWidget {
                     spreadRadius: 1,
                   ),
                 ],
-                border:
-                    Border.all(color: const Color(0xFF8E24FF).withOpacity(0.28)),
+                border: Border.all(
+                    color: const Color(0xFF8E24FF).withOpacity(0.28)),
               ),
               child: Column(
                 children: <Widget>[
