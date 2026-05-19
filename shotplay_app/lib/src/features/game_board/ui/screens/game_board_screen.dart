@@ -10,6 +10,7 @@ import '../../../../core/routing/app_routes.dart';
 import '../bloc/game_board_controller.dart';
 import '../sections/game_feed_section.dart';
 import '../widgets/board_status_bar.dart';
+import '../widgets/dice_roll_dialog.dart';
 import '../widgets/game_board_widget.dart';
 import '../widgets/roll_dice_button.dart';
 
@@ -103,25 +104,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
         builder:
             (_) => PopScope(
               canPop: false,
-              child: AlertDialog(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🎲', style: TextStyle(fontSize: 100)),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Sacó ',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: DiceRollDialog(value: _lastDiceShowed ?? 1),
             ),
       );
     } else if (_controller!.animatingDiceValue == null &&
