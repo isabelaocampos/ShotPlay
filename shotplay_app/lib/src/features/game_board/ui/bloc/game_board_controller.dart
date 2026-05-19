@@ -147,6 +147,7 @@ class GameBoardController extends ChangeNotifier {
 
     final challenge = _pendingChallenge!;
     final diceValue = _pendingDiceValue;
+    final eventLog = _buildChallengeLog(challenge, accepted);
     _pendingChallenge = null;
     _pendingDiceValue = 0;
 
@@ -156,7 +157,7 @@ class GameBoardController extends ChangeNotifier {
     try {
       final finalSquare =
           accepted ? challenge.acceptSquare : challenge.rejectSquare;
-      await _applyAndEmit(diceValue, finalSquare);
+      await _applyAndEmit(diceValue, finalSquare, eventLog: eventLog);
     } catch (e) {
       debugPrint('[BOARD] respondToChallenge error: $e');
       _isRolling = false;
@@ -192,8 +193,28 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
-  Future<void> _applyAndEmit(int diceValue, int finalSquare) async {
-    final newState = _gameState!.applyFinalMove(finalSquare, diceValue);
+  String _buildChallengeLog(PenaltyChallenge challenge, bool accepted) {
+    final rollerName = _gameState!.positions
+        .firstWhere((p) => p.playerId == _gameState!.currentTurnPlayerId)
+        .username;
+
+    if (challenge.type == PenaltyChallengeType.takeShotToClimb) {
+      return accepted
+          ? '$rollerName tomó un shot y subió la escalera a la casilla ${challenge.acceptSquare} 🪜'
+          : '$rollerName rechazó el shot y se quedó en la casilla ${challenge.rejectSquare}';
+    } else {
+      return accepted
+          ? '$rollerName tomó un shot y se quedó en la casilla ${challenge.acceptSquare}'
+          : '$rollerName rechazó el shot y bajó por la serpiente a la casilla ${challenge.rejectSquare} 🐍';
+    }
+  }
+
+  Future<void> _applyAndEmit(int diceValue, int finalSquare,
+      {String eventLog = ''}) async {
+    var newState = _gameState!.applyFinalMove(finalSquare, diceValue);
+    if (eventLog.isNotEmpty) {
+      newState = newState.copyWith(lastEventLog: eventLog);
+    }
     await _emitEvent.execute(newState);
 
     // Emit a dedicated victory event so SHOT-NEW-4 can react to it.

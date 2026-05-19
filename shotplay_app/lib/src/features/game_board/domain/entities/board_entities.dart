@@ -85,7 +85,8 @@ class GameState {
     required this.lastDiceValue,
     required this.shotsTakenByCurrentPlayer,
     required this.isStarted,
-    this.lastMovedPlayerId = '', // '' = nobody has moved yet
+    this.lastMovedPlayerId = '',
+    this.lastEventLog = '',
   });
 
   final List<PlayerPosition> positions;
@@ -98,6 +99,10 @@ class GameState {
   /// [currentTurnPlayerId] once the turn has advanced).
   final String lastMovedPlayerId;
 
+  /// Human-readable description of the last penalty-challenge outcome,
+  /// e.g. "Ana tomó un shot y subió la escalera". Empty when no challenge.
+  final String lastEventLog;
+
   GameState copyWith({
     List<PlayerPosition>? positions,
     String? currentTurnPlayerId,
@@ -105,6 +110,7 @@ class GameState {
     int? shotsTakenByCurrentPlayer,
     bool? isStarted,
     String? lastMovedPlayerId,
+    String? lastEventLog,
   }) {
     return GameState(
       positions: positions ?? this.positions,
@@ -114,6 +120,7 @@ class GameState {
           shotsTakenByCurrentPlayer ?? this.shotsTakenByCurrentPlayer,
       isStarted: isStarted ?? this.isStarted,
       lastMovedPlayerId: lastMovedPlayerId ?? this.lastMovedPlayerId,
+      lastEventLog: lastEventLog ?? this.lastEventLog,
     );
   }
 
@@ -150,6 +157,7 @@ class GameState {
       lastDiceValue: diceValue,
       shotsTakenByCurrentPlayer: 0,
       lastMovedPlayerId: mover,
+      lastEventLog: '', // cleared; controller sets it when there was a challenge
     );
   }
 
@@ -180,6 +188,7 @@ class GameState {
         'shotsTakenByCurrentPlayer': shotsTakenByCurrentPlayer,
         'isStarted': isStarted,
         'lastMovedPlayerId': lastMovedPlayerId,
+        'lastEventLog': lastEventLog,
       };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -199,6 +208,7 @@ class GameState {
           (json['shotsTakenByCurrentPlayer'] as num?)?.toInt() ?? 0,
       isStarted: json['isStarted'] as bool? ?? false,
       lastMovedPlayerId: json['lastMovedPlayerId'] as String? ?? '',
+      lastEventLog: json['lastEventLog'] as String? ?? '',
     );
   }
 
@@ -209,6 +219,7 @@ class GameState {
         shotsTakenByCurrentPlayer: 0,
         isStarted: true,
         lastMovedPlayerId: '',
+        lastEventLog: '',
       );
 }
 

@@ -55,6 +55,13 @@ class GameFeedSection extends StatelessWidget {
             sub: 'Avanzó a la casilla ${lastMover.square}',
             isActive: true,
           ),
+
+        // Penalty challenge outcome (only shown when a challenge occurred).
+        if (gameState.lastEventLog.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _EventLogItem(message: gameState.lastEventLog),
+        ],
+
         const SizedBox(height: 8),
         // Waiting for the current player to roll.
         Opacity(
@@ -68,6 +75,41 @@ class GameFeedSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _EventLogItem extends StatelessWidget {
+  const _EventLogItem({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2535),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF5F0F86).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_bar_rounded, color: Color(0xFFBAFA5E), size: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFBAFA5E),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
