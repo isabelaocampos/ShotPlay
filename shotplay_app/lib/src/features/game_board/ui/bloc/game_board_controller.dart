@@ -50,6 +50,10 @@ class GameBoardController extends ChangeNotifier {
   PenaltyChallenge? _pendingChallenge;
   int _pendingDiceValue = 0;
 
+  // True when the challenge path pre-animated locally; tells
+  // _animateStateTransition to skip the dice+step animation (already seen).
+  bool _localAnimDone = false;
+
   GameBoardStatus get status => _status;
   GameState? get gameState => _gameState;
   bool get isRolling => _isRolling;
@@ -119,7 +123,9 @@ class GameBoardController extends ChangeNotifier {
       final challenge = PenaltyChallenge.forSquare(rawSquare);
 
       if (challenge != null) {
-        // Pause and wait for the player's shot decision.
+        // Show dice + token animation before presenting the challenge dialog.
+        await _animateLocalMove(diceValue, rawSquare);
+        _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingChallenge = challenge;
         _isRolling = false;
@@ -159,6 +165,32 @@ class GameBoardController extends ChangeNotifier {
   }
 
   // ── Private helpers ─────────────────────────────────────────────
+
+  /// Plays the dice dialog and step-by-step token movement locally for the
+  /// rolling player BEFORE showing the penalty challenge dialog.
+  /// Does NOT emit anything to Supabase.
+  Future<void> _animateLocalMove(int diceValue, int rawSquare) async {
+    _animatingDiceValue = diceValue;
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 2));
+    _animatingDiceValue = null;
+    notifyListeners();
+
+    final startSquare = _gameState!.positions
+        .firstWhere((p) => p.playerId == currentUserId)
+        .square;
+
+    for (int step = 1; step <= diceValue; step++) {
+      final s = startSquare + step;
+      if (s > 49) break;
+      final temp = List<PlayerPosition>.from(_gameState!.positions);
+      final idx = temp.indexWhere((p) => p.playerId == currentUserId);
+      temp[idx] = temp[idx].copyWith(square: s);
+      _gameState = _gameState!.copyWith(positions: temp);
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
 
   Future<void> _applyAndEmit(int diceValue, int finalSquare) async {
     final newState = _gameState!.applyFinalMove(finalSquare, diceValue);
@@ -261,41 +293,53 @@ class GameBoardController extends ChangeNotifier {
 
     final diceValue = targetState.lastDiceValue;
 
-    _animatingDiceValue = diceValue;
-    notifyListeners();
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    _animatingDiceValue = null;
-    notifyListeners();
-
-    if (prevMover != null &&
-        nextMover != null &&
-        diceValue > 0 &&
-        prevMover.playerId == nextMover.playerId &&
-        prevMover.square != nextMover.square) {
-      int steps = diceValue;
-      int logicTarget = prevMover.square + steps;
-      if (logicTarget > 49) logicTarget = 49;
-
-      for (int step = 1; step <= steps; step++) {
-        int s = prevMover.square + step;
-        if (s > 49) break;
-
-        final tempPositions = List<PlayerPosition>.from(_gameState!.positions);
-        final idx = tempPositions.indexWhere(
-          (p) => p.playerId == prevMover!.playerId,
-        );
-        tempPositions[idx] = tempPositions[idx].copyWith(square: s);
-
-        _gameState = _gameState!.copyWith(positions: tempPositions);
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-
-      // Snake/ladder jump — pause briefly so the player sees the intermediate pos.
-      if (logicTarget != nextMover.square) {
+    if (_localAnimDone) {
+      // Rolling player already saw dice dialog + step-by-step locally.
+      // Only pause for the snake/ladder jump if the position changed.
+      _localAnimDone = false;
+      if (prevMover != null &&
+          nextMover != null &&
+          prevMover.square != nextMover.square) {
         await Future.delayed(const Duration(milliseconds: 600));
+      }
+    } else {
+      // Normal path: show dice dialog then step-by-step animation.
+      _animatingDiceValue = diceValue;
+      notifyListeners();
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      _animatingDiceValue = null;
+      notifyListeners();
+
+      if (prevMover != null &&
+          nextMover != null &&
+          diceValue > 0 &&
+          prevMover.playerId == nextMover.playerId &&
+          prevMover.square != nextMover.square) {
+        int steps = diceValue;
+        int logicTarget = prevMover.square + steps;
+        if (logicTarget > 49) logicTarget = 49;
+
+        for (int step = 1; step <= steps; step++) {
+          int s = prevMover.square + step;
+          if (s > 49) break;
+
+          final tempPositions = List<PlayerPosition>.from(_gameState!.positions);
+          final idx = tempPositions.indexWhere(
+            (p) => p.playerId == prevMover!.playerId,
+          );
+          tempPositions[idx] = tempPositions[idx].copyWith(square: s);
+
+          _gameState = _gameState!.copyWith(positions: tempPositions);
+          notifyListeners();
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+
+        // Snake/ladder jump — pause so the player sees the intermediate pos.
+        if (logicTarget != nextMover.square) {
+          await Future.delayed(const Duration(milliseconds: 600));
+        }
       }
     }
 

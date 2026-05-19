@@ -14,9 +14,17 @@ class GameFeedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Player whose turn it is RIGHT NOW (hasn't rolled yet).
     final currentPlayer = gameState.positions
         .where((p) => p.playerId == gameState.currentTurnPlayerId)
         .firstOrNull;
+
+    // Player who JUST rolled (may differ from currentPlayer after turn advance).
+    final lastMover = gameState.lastMovedPlayerId.isNotEmpty
+        ? gameState.positions
+            .where((p) => p.playerId == gameState.lastMovedPlayerId)
+            .firstOrNull
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,18 +46,17 @@ class GameFeedSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        // Last dice roll event
-        if (gameState.lastDiceValue > 0 && currentPlayer != null)
+        // Last dice roll — attributed to the player who actually rolled.
+        if (gameState.lastDiceValue > 0 && lastMover != null)
           _FeedItem(
-            username: currentPlayer.username,
+            username: lastMover.username,
             action: 'lanzó un',
             highlight: '${gameState.lastDiceValue}',
-            sub:
-                'Avanzó a la casilla ${currentPlayer.square}',
+            sub: 'Avanzó a la casilla ${lastMover.square}',
             isActive: true,
           ),
         const SizedBox(height: 8),
-        // Waiting for turn
+        // Waiting for the current player to roll.
         Opacity(
           opacity: 0.6,
           child: _FeedItem(

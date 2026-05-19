@@ -85,6 +85,7 @@ class GameState {
     required this.lastDiceValue,
     required this.shotsTakenByCurrentPlayer,
     required this.isStarted,
+    this.lastMovedPlayerId = '', // '' = nobody has moved yet
   });
 
   final List<PlayerPosition> positions;
@@ -93,12 +94,17 @@ class GameState {
   final int shotsTakenByCurrentPlayer;
   final bool isStarted;
 
+  /// ID of the player who last rolled the dice (differs from
+  /// [currentTurnPlayerId] once the turn has advanced).
+  final String lastMovedPlayerId;
+
   GameState copyWith({
     List<PlayerPosition>? positions,
     String? currentTurnPlayerId,
     int? lastDiceValue,
     int? shotsTakenByCurrentPlayer,
     bool? isStarted,
+    String? lastMovedPlayerId,
   }) {
     return GameState(
       positions: positions ?? this.positions,
@@ -107,6 +113,7 @@ class GameState {
       shotsTakenByCurrentPlayer:
           shotsTakenByCurrentPlayer ?? this.shotsTakenByCurrentPlayer,
       isStarted: isStarted ?? this.isStarted,
+      lastMovedPlayerId: lastMovedPlayerId ?? this.lastMovedPlayerId,
     );
   }
 
@@ -126,13 +133,15 @@ class GameState {
   GameState applyFinalMove(int finalSquare, int diceValue) {
     if (positions.isEmpty) return this;
 
+    final mover = currentTurnPlayerId; // capture BEFORE advancing
+
     final updatedPositions = positions.map((p) {
-      if (p.playerId != currentTurnPlayerId) return p;
+      if (p.playerId != mover) return p;
       return p.copyWith(square: finalSquare);
     }).toList();
 
     final playerIds = positions.map((p) => p.playerId).toList();
-    final currentIndex = playerIds.indexOf(currentTurnPlayerId);
+    final currentIndex = playerIds.indexOf(mover);
     final nextIndex = (currentIndex + 1) % playerIds.length;
 
     return copyWith(
@@ -140,6 +149,7 @@ class GameState {
       currentTurnPlayerId: playerIds[nextIndex],
       lastDiceValue: diceValue,
       shotsTakenByCurrentPlayer: 0,
+      lastMovedPlayerId: mover,
     );
   }
 
@@ -169,6 +179,7 @@ class GameState {
         'lastDiceValue': lastDiceValue,
         'shotsTakenByCurrentPlayer': shotsTakenByCurrentPlayer,
         'isStarted': isStarted,
+        'lastMovedPlayerId': lastMovedPlayerId,
       };
 
   factory GameState.fromJson(Map<String, dynamic> json) {
@@ -187,6 +198,7 @@ class GameState {
       shotsTakenByCurrentPlayer:
           (json['shotsTakenByCurrentPlayer'] as num?)?.toInt() ?? 0,
       isStarted: json['isStarted'] as bool? ?? false,
+      lastMovedPlayerId: json['lastMovedPlayerId'] as String? ?? '',
     );
   }
 
@@ -196,6 +208,7 @@ class GameState {
         lastDiceValue: 0,
         shotsTakenByCurrentPlayer: 0,
         isStarted: true,
+        lastMovedPlayerId: '',
       );
 }
 
