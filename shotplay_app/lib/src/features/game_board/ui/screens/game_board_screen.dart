@@ -12,6 +12,7 @@ import '../sections/game_feed_section.dart';
 import '../widgets/board_status_bar.dart';
 import '../widgets/dice_roll_dialog.dart';
 import '../widgets/game_board_widget.dart';
+import '../widgets/penalty_challenge_dialog.dart';
 import '../widgets/roll_dice_button.dart';
 
 class GameBoardScreen extends StatelessWidget {
@@ -66,6 +67,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
   GameBoardController? _controller;
   int? _lastDiceShowed;
   bool _winnerDialogShown = false;
+  bool _challengeDialogShowing = false;
 
   @override
   void initState() {
@@ -93,6 +95,12 @@ class _GameBoardViewState extends State<_GameBoardView> {
       return;
     }
 
+    // Penalty challenge: only shown to the rolling player (local decision).
+    if (_controller!.pendingChallenge != null && !_challengeDialogShowing) {
+      _challengeDialogShowing = true;
+      _showPenaltyChallengeDialog();
+    }
+
     if (_controller!.animatingDiceValue != null &&
         _controller!.animatingDiceValue != _lastDiceShowed) {
       _lastDiceShowed = _controller!.animatingDiceValue;
@@ -114,6 +122,32 @@ class _GameBoardViewState extends State<_GameBoardView> {
       }
       _lastDiceShowed = null;
     }
+  }
+
+  void _showPenaltyChallengeDialog() {
+    final challenge = _controller?.pendingChallenge;
+    if (challenge == null) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: PenaltyChallengeDialog(
+          challenge: challenge,
+          onAccept: () {
+            Navigator.of(ctx).pop();
+            _challengeDialogShowing = false;
+            _controller?.respondToChallenge(true);
+          },
+          onReject: () {
+            Navigator.of(ctx).pop();
+            _challengeDialogShowing = false;
+            _controller?.respondToChallenge(false);
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _showWinnerDialog() async {

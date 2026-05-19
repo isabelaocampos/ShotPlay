@@ -18,4 +18,7 @@ class GameEventTypes {
 
   /// Sync general del tablero.
   static const String gameSync = 'game.sync';
+
+  /// Un jugador alcanzó la casilla 49; payload: winnerId, winnerUsername.
+  static const String gameVictory = 'game.victory';
 }

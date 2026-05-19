@@ -1,7 +1,7 @@
 /// Represents the type of a board cell with its colour group.
 enum CellType {
   normal,
-  snakeTail, // pink — player slides down
+  snakeHead, // pink — player slides down (head of the snake)
   ladderBase, // ladder bottom — player goes up
   shotTake, // lime/green — take a shot
   shotGive, // cyan — give a shot
@@ -48,7 +48,7 @@ class BoardDefinition {
   static const Set<int> shotSquares = {7, 14, 21, 30, 31};
 
   static CellType typeOf(int square) {
-    if (snakes.containsKey(square)) return CellType.snakeTail;
+    if (snakes.containsKey(square)) return CellType.snakeHead;
     if (ladders.containsKey(square)) return CellType.ladderBase;
     if (shotSquares.contains(square)) return CellType.shotTake;
     return CellType.normal;
@@ -110,40 +110,50 @@ class GameState {
     );
   }
 
-  /// Calculates the next state after rolling the dice.
-  /// Applies movements, ladders, snakes, and advances the turn.
-  GameState applyDiceRoll(int diceValue) {
+  /// Returns the raw square for the current player after rolling [diceValue],
+  /// without applying snake or ladder logic.
+  int rawSquareForCurrentPlayer(int diceValue) {
+    if (positions.isEmpty) return 1;
+    final player = positions.firstWhere(
+      (p) => p.playerId == currentTurnPlayerId,
+      orElse: () => positions.first,
+    );
+    return (player.square + diceValue).clamp(1, 49);
+  }
+
+  /// Applies [finalSquare] as the current player's resolved position and
+  /// advances the turn. [diceValue] is preserved for animation.
+  GameState applyFinalMove(int finalSquare, int diceValue) {
     if (positions.isEmpty) return this;
 
     final updatedPositions = positions.map((p) {
       if (p.playerId != currentTurnPlayerId) return p;
-
-      int newSquare = (p.square + diceValue).clamp(1, 49);
-
-      // Apply snake
-      if (BoardDefinition.snakes.containsKey(newSquare)) {
-        newSquare = BoardDefinition.snakes[newSquare]!;
-      }
-      // Apply ladder
-      else if (BoardDefinition.ladders.containsKey(newSquare)) {
-        newSquare = BoardDefinition.ladders[newSquare]!;
-      }
-
-      return p.copyWith(square: newSquare);
+      return p.copyWith(square: finalSquare);
     }).toList();
 
-    // Advance turn to the next player
     final playerIds = positions.map((p) => p.playerId).toList();
     final currentIndex = playerIds.indexOf(currentTurnPlayerId);
     final nextIndex = (currentIndex + 1) % playerIds.length;
-    final nextPlayerId = playerIds[nextIndex];
 
     return copyWith(
       positions: updatedPositions,
-      currentTurnPlayerId: nextPlayerId,
+      currentTurnPlayerId: playerIds[nextIndex],
       lastDiceValue: diceValue,
       shotsTakenByCurrentPlayer: 0,
     );
+  }
+
+  /// Convenience: rolls dice and auto-resolves snake/ladder without player choice.
+  /// Used only for the no-challenge path (normal squares).
+  GameState applyDiceRoll(int diceValue) {
+    final rawSquare = rawSquareForCurrentPlayer(diceValue);
+    int finalSquare = rawSquare;
+    if (BoardDefinition.snakes.containsKey(rawSquare)) {
+      finalSquare = BoardDefinition.snakes[rawSquare]!;
+    } else if (BoardDefinition.ladders.containsKey(rawSquare)) {
+      finalSquare = BoardDefinition.ladders[rawSquare]!;
+    }
+    return applyFinalMove(finalSquare, diceValue);
   }
 
   Map<String, dynamic> toJson() => {
@@ -187,4 +197,59 @@ class GameState {
         shotsTakenByCurrentPlayer: 0,
         isStarted: true,
       );
+}
+
+// ── Penalty Challenge ───────────────────────────────────────────────────────
+
+/// Describes which shot offer is presented to the player.
+enum PenaltyChallengeType {
+  /// Snake head — accept shot → stay at head; decline → fall to tail.
+  takeShootToStay,
+  /// Ladder base — accept shot → climb to top; decline → stay at base.
+  takeShotToClimb,
+}
+
+/// The interactive challenge shown when a player lands on a snake head or
+/// ladder base. Carries both outcomes so the controller can resolve the move
+/// without knowing board details.
+class PenaltyChallenge {
+  const PenaltyChallenge({
+    required this.type,
+    required this.rawSquare,
+    required this.acceptSquare,
+    required this.rejectSquare,
+  });
+
+  final PenaltyChallengeType type;
+
+  /// The square the player's token landed on (head or base).
+  final int rawSquare;
+
+  /// Final square if the player takes the shot.
+  final int acceptSquare;
+
+  /// Final square if the player refuses the shot.
+  final int rejectSquare;
+
+  /// Returns a [PenaltyChallenge] if [rawSquare] is a snake head or ladder
+  /// base, or null for any other square.
+  static PenaltyChallenge? forSquare(int rawSquare) {
+    if (BoardDefinition.snakes.containsKey(rawSquare)) {
+      return PenaltyChallenge(
+        type: PenaltyChallengeType.takeShootToStay,
+        rawSquare: rawSquare,
+        acceptSquare: rawSquare, // stays at head
+        rejectSquare: BoardDefinition.snakes[rawSquare]!, // falls to tail
+      );
+    }
+    if (BoardDefinition.ladders.containsKey(rawSquare)) {
+      return PenaltyChallenge(
+        type: PenaltyChallengeType.takeShotToClimb,
+        rawSquare: rawSquare,
+        acceptSquare: BoardDefinition.ladders[rawSquare]!, // climbs to top
+        rejectSquare: rawSquare, // stays at base
+      );
+    }
+    return null;
+  }
 }

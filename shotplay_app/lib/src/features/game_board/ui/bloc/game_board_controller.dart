@@ -22,7 +22,8 @@ class GameBoardController extends ChangeNotifier {
     required List<RoomPlayer> players,
   }) : _gameEvents = gameEvents,
        _startGame = StartGameUsecase(gameEvents),
-       _rollDice = RollDiceUsecase(EmitDiceRollEventUsecase(gameEvents)),
+       _rollDice = RollDiceUsecase(),
+       _emitEvent = EmitDiceRollEventUsecase(gameEvents),
        _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
        _players = players {
     _eventsSubscription = _watchEvents.execute().listen(_onEvent);
@@ -31,6 +32,7 @@ class GameBoardController extends ChangeNotifier {
   final GameEventRepository _gameEvents;
   final StartGameUsecase _startGame;
   final RollDiceUsecase _rollDice;
+  final EmitDiceRollEventUsecase _emitEvent;
   final WatchGameBoardEventsUsecase _watchEvents;
   final List<RoomPlayer> _players;
 
@@ -44,16 +46,22 @@ class GameBoardController extends ChangeNotifier {
   bool _isRolling = false;
   int? _animatingDiceValue;
 
+  // Pending penalty challenge waiting for the current player's response.
+  PenaltyChallenge? _pendingChallenge;
+  int _pendingDiceValue = 0;
+
   GameBoardStatus get status => _status;
   GameState? get gameState => _gameState;
   bool get isRolling => _isRolling;
   int? get animatingDiceValue => _animatingDiceValue;
+  PenaltyChallenge? get pendingChallenge => _pendingChallenge;
 
   bool get isMyTurn =>
       _gameState != null &&
       _gameState!.currentTurnPlayerId == currentUserId &&
       _status == GameBoardStatus.playing &&
-      !_isRolling;
+      !_isRolling &&
+      _pendingChallenge == null;
 
   PlayerPosition? get myPosition =>
       _gameState?.positions
@@ -67,16 +75,14 @@ class GameBoardController extends ChangeNotifier {
 
   String get currentTurnUsername {
     if (_gameState == null) return '';
-    final pos =
-        _gameState!.positions
-            .where((p) => p.playerId == _gameState!.currentTurnPlayerId)
-            .firstOrNull;
+    final pos = _gameState!.positions
+        .where((p) => p.playerId == _gameState!.currentTurnPlayerId)
+        .firstOrNull;
     return pos?.username ?? '';
   }
 
   // ── Public actions ──────────────────────────────────────────────
 
-  /// Admin: inicia el juego y emite el estado al canal.
   Future<void> startGame() async {
     if (!isAdmin) return;
     try {
@@ -89,7 +95,6 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
-  /// No-admin: pide al admin que re-emita el estado actual.
   Future<void> requestSync() async {
     if (isAdmin) return;
     try {
@@ -100,19 +105,78 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
+  /// Rolls the dice. If the result lands on a snake head or ladder base,
+  /// sets [pendingChallenge] so the UI can present the shot pop-up.
+  /// Otherwise, applies the move directly and broadcasts the new state.
   Future<void> rollDice() async {
     if (!isMyTurn || _isRolling) return;
     _isRolling = true;
     notifyListeners();
 
     try {
-      await _rollDice.execute(_gameState!);
-    } catch (e) {
+      final diceValue = _rollDice.execute();
+      final rawSquare = _gameState!.rawSquareForCurrentPlayer(diceValue);
+      final challenge = PenaltyChallenge.forSquare(rawSquare);
 
-  // ── Event listener ───────────────────────────────────────────────
+      if (challenge != null) {
+        // Pause and wait for the player's shot decision.
+        _pendingDiceValue = diceValue;
+        _pendingChallenge = challenge;
+        _isRolling = false;
+        notifyListeners();
+      } else {
+        await _applyAndEmit(diceValue, rawSquare);
+      }
+    } catch (e) {
       debugPrint('[BOARD] rollDice error: $e');
       _isRolling = false;
       notifyListeners();
+    }
+  }
+
+  /// Called by the UI after the player responds to a [pendingChallenge].
+  /// [accepted] = true → takes the shot; false → declines.
+  Future<void> respondToChallenge(bool accepted) async {
+    if (_pendingChallenge == null || _gameState == null) return;
+
+    final challenge = _pendingChallenge!;
+    final diceValue = _pendingDiceValue;
+    _pendingChallenge = null;
+    _pendingDiceValue = 0;
+
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      final finalSquare =
+          accepted ? challenge.acceptSquare : challenge.rejectSquare;
+      await _applyAndEmit(diceValue, finalSquare);
+    } catch (e) {
+      debugPrint('[BOARD] respondToChallenge error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────
+
+  Future<void> _applyAndEmit(int diceValue, int finalSquare) async {
+    final newState = _gameState!.applyFinalMove(finalSquare, diceValue);
+    await _emitEvent.execute(newState);
+
+    // Emit a dedicated victory event so SHOT-NEW-4 can react to it.
+    final winner = newState.positions.where((p) => p.square >= 49).firstOrNull;
+    if (winner != null) {
+      await _gameEvents
+          .emitEvent({
+            'appEventType': GameBoardEventTypes.gameVictory,
+            'winnerId': winner.playerId,
+            'winnerUsername': winner.username,
+          })
+          .catchError((e) {
+            debugPrint('[BOARD] victory emit error: $e');
+            return null;
+          });
     }
   }
 
@@ -126,12 +190,13 @@ class GameBoardController extends ChangeNotifier {
         final state = GameState.fromJson(event);
         _gameState = state;
         _status = GameBoardStatus.playing;
-        final winner = state.positions.where((p) => p.square >= 49).firstOrNull;
-        if (winner != null) _status = GameBoardStatus.finished;
+        if (state.positions.any((p) => p.square >= 49)) {
+          _status = GameBoardStatus.finished;
+        }
         _isRolling = false;
         notifyListeners();
       } catch (e) {
-        debugPrint('[BOARD] failed to parse event: $e');
+        debugPrint('[BOARD] failed to parse gameStart event: $e');
       }
       return;
     }
@@ -144,15 +209,21 @@ class GameBoardController extends ChangeNotifier {
         } else {
           _gameState = state;
           _status = GameBoardStatus.playing;
-          final winner =
-              state.positions.where((p) => p.square >= 49).firstOrNull;
-          if (winner != null) _status = GameBoardStatus.finished;
+          if (state.positions.any((p) => p.square >= 49)) {
+            _status = GameBoardStatus.finished;
+          }
           _isRolling = false;
           notifyListeners();
         }
       } catch (e) {
-        debugPrint('[BOARD] failed to parse event: $e');
+        debugPrint('[BOARD] failed to parse diceRoll event: $e');
       }
+      return;
+    }
+
+    if (type == GameBoardEventTypes.gameVictory) {
+      _status = GameBoardStatus.finished;
+      notifyListeners();
       return;
     }
 
@@ -222,6 +293,7 @@ class GameBoardController extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 300));
       }
 
+      // Snake/ladder jump — pause briefly so the player sees the intermediate pos.
       if (logicTarget != nextMover.square) {
         await Future.delayed(const Duration(milliseconds: 600));
       }
@@ -229,9 +301,9 @@ class GameBoardController extends ChangeNotifier {
 
     _gameState = targetState;
     _status = GameBoardStatus.playing;
-    final winner =
-        targetState.positions.where((p) => p.square >= 49).firstOrNull;
-    if (winner != null) _status = GameBoardStatus.finished;
+    if (targetState.positions.any((p) => p.square >= 49)) {
+      _status = GameBoardStatus.finished;
+    }
 
     _isRolling = false;
     notifyListeners();
@@ -240,6 +312,7 @@ class GameBoardController extends ChangeNotifier {
   @override
   void dispose() {
     _eventsSubscription?.cancel();
+    _pendingChallenge = null;
     super.dispose();
   }
 }
