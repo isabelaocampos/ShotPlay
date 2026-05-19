@@ -25,7 +25,7 @@ class GameBoardWidget extends StatelessWidget {
         final cellSize = boardSize / 7;
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(boardSize * 0.04),
+          borderRadius: BorderRadius.circular(boardSize * 0.035),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -36,10 +36,14 @@ class GameBoardWidget extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF1D1027),
-                        const Color(0xFF0B0711),
-                        const Color(0xFF110B1A),
+                        const Color(0xFF16111D),
+                        const Color(0xFF09070D),
+                        const Color(0xFF120D17),
                       ],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF07FCFE).withValues(alpha: 0.10),
+                      width: 1,
                     ),
                   ),
                 ),
@@ -51,9 +55,9 @@ class GameBoardWidget extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF5F0F86).withValues(alpha: 0.12),
-                        const Color(0xFF07FCFE).withValues(alpha: 0.04),
-                        Colors.black.withValues(alpha: 0.18),
+                        const Color(0xFF5F0F86).withValues(alpha: 0.05),
+                        const Color(0xFF07FCFE).withValues(alpha: 0.02),
+                        Colors.black.withValues(alpha: 0.22),
                       ],
                     ),
                   ),

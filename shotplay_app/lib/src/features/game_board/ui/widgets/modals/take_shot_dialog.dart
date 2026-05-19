@@ -16,8 +16,8 @@ class TakeShotDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GenericChallengeDialog(
-      title: 'Take Shot',
-      message: 'Toma 1 shot y sigue la partida.',
+      title: 'Take 2 shots',
+      message: 'Toma 2 shots y sigue la partida.',
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFFBAFA5E),
       primaryLabel: 'Yo tomo',

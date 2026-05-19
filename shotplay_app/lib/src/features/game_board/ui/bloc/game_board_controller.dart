@@ -296,12 +296,16 @@ class GameBoardController extends ChangeNotifier {
         .username;
 
     final cellLabel = switch (cell.type) {
-      SpecialCellType.takeShot => 'Yo tomo',
+      SpecialCellType.takeShot => 'Take 2 shots',
       SpecialCellType.giveShot => 'Dale el shot',
       SpecialCellType.truthOrDare => 'Verdad o Reto',
     };
 
-    return '$rollerName hit $cellLabel at square ${cell.square} and $eventLabel';
+    return switch (cell.type) {
+      SpecialCellType.takeShot => '$rollerName tomó 2 shots en la casilla ${cell.square}',
+      SpecialCellType.giveShot => '$rollerName activó $cellLabel en la casilla ${cell.square} y $eventLabel',
+      SpecialCellType.truthOrDare => '$rollerName activó $cellLabel en la casilla ${cell.square} y $eventLabel',
+    };
   }
 
   Future<void> _resolveSpecialCell(

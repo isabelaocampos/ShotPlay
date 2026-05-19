@@ -102,9 +102,9 @@ class _SpecialCellPulse extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.40),
+            color: color.withValues(alpha: 0.35),
             blurRadius: 10,
-            spreadRadius: 2,
+            spreadRadius: 1.5,
           ),
         ],
       ),

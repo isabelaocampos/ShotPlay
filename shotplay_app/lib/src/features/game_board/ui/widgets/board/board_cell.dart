@@ -18,7 +18,7 @@ class BoardCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = data.borderColor;
-    final baseGlow = data.isSpecial ? 0.22 : 0.10;
+    final baseGlow = data.isSpecial ? 0.18 : 0.12;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -29,27 +29,27 @@ class BoardCell extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            borderColor.withValues(alpha: data.isSpecial ? 0.18 : 0.10),
-            const Color(0xFF110B18).withValues(alpha: 0.88),
+            borderColor.withValues(alpha: data.isSpecial ? 0.20 : 0.14),
+            const Color(0xFF110B18).withValues(alpha: 0.95),
           ],
         ),
-        borderRadius: BorderRadius.circular(size * 0.16),
+        borderRadius: BorderRadius.circular(size * 0.15),
         border: Border.all(
           color: borderColor.withValues(
-            alpha: isHighlighted ? 0.95 : (data.isSpecial ? 0.70 : 0.45),
+            alpha: isHighlighted ? 0.92 : (data.isSpecial ? 0.70 : 0.42),
           ),
-          width: isHighlighted ? 2.0 : 1.0,
+          width: isHighlighted ? 1.8 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
             color: neonGlow(borderColor, baseGlow),
-            blurRadius: isHighlighted ? 18 : 10,
-            spreadRadius: isHighlighted ? 1.5 : 0.5,
+            blurRadius: isHighlighted ? 14 : 8,
+            spreadRadius: isHighlighted ? 1.0 : 0.3,
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(size * 0.16),
+        borderRadius: BorderRadius.circular(size * 0.15),
         child: Stack(
           children: [
             Positioned.fill(
@@ -57,9 +57,9 @@ class BoardCell extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: const Alignment(-0.4, -0.6),
-                    radius: 1.2,
+                    radius: 1.15,
                     colors: [
-                      borderColor.withValues(alpha: 0.16),
+                      borderColor.withValues(alpha: 0.18),
                       Colors.transparent,
                     ],
                   ),
@@ -72,7 +72,7 @@ class BoardCell extends StatelessWidget {
               child: Text(
                 '${data.square}',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.74),
+                  color: Colors.white.withValues(alpha: 0.78),
                   fontSize: size * 0.16,
                   fontWeight: FontWeight.w700,
                   shadows: [
@@ -87,7 +87,7 @@ class BoardCell extends StatelessWidget {
             if (data.overlay != null)
               Center(
                 child: Opacity(
-                  opacity: data.isSpecial ? 1 : 0.85,
+                  opacity: data.isSpecial ? 1 : 0.88,
                   child: data.overlay!,
                 ),
               ),
