@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shotplay_app/src/features/game_board/domain/entities/board_entities.dart';
 import 'package:shotplay_app/src/features/game_board/domain/game_board_event_types.dart';
+import 'package:shotplay_app/src/features/game_board/domain/usecases/leave_game_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/start_game_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/watch_game_board_events_usecase.dart';
@@ -29,6 +30,7 @@ class GameBoardController extends ChangeNotifier {
         _startGame = StartGameUsecase(gameEvents),
         _rollDice = RollDiceUsecase(gameEvents),
         _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
+        _leaveGame = LeaveGameUsecase(gameEvents),
         _players = players {
     _eventsSubscription = _watchEvents.execute().listen(_onEvent);
   }
@@ -37,6 +39,7 @@ class GameBoardController extends ChangeNotifier {
   final StartGameUsecase _startGame;
   final RollDiceUsecase _rollDice;
   final WatchGameBoardEventsUsecase _watchEvents;
+  final LeaveGameUsecase _leaveGame;
   final List<RoomPlayer> _players;
 
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
@@ -95,6 +98,16 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
+  /// Disconnects from the room realtime channel when leaving the board.
+  Future<void> leaveGame() async {
+    try {
+      await _leaveGame.execute();
+      debugPrint('[BOARD] left game — channel disconnected');
+    } catch (e) {
+      debugPrint('[BOARD] leaveGame error: $e');
+    }
+  }
+
   Future<void> rollDice() async {
     if (!isMyTurn || _isRolling) return;
     _isRolling = true;
@@ -150,6 +163,7 @@ class GameBoardController extends ChangeNotifier {
   @override
   void dispose() {
     _eventsSubscription?.cancel();
+    unawaited(_leaveGame.execute());
     super.dispose();
   }
 }

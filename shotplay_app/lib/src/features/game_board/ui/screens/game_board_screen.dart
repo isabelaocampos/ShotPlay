@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/routing/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/entities/room_session.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
@@ -80,6 +82,64 @@ class _GameBoardViewState extends State<_GameBoardView> {
     });
   }
 
+  Future<void> _onLeaveTap() async {
+    final shouldLeave = await _showLeaveGameConfirmation(context);
+    if (!shouldLeave || !mounted) return;
+
+    await context.read<GameBoardController>().leaveGame();
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.gameCatalog,
+      (route) => false,
+    );
+  }
+
+  Future<bool> _showLeaveGameConfirmation(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF191022),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: AppTheme.primary.withOpacity(0.2)),
+        ),
+        title: const Text(
+          '¿Seguro que quieres salir de la partida?',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              'Seguir jugando',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              'Salir de la partida',
+              style: TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GameBoardController>();
@@ -95,7 +155,10 @@ class _GameBoardViewState extends State<_GameBoardView> {
             child: SafeArea(
               child: Column(
                 children: [
-                  _TopBar(roomCode: widget.room.roomCode),
+                  _TopBar(
+                    roomCode: widget.room.roomCode,
+                    onLeaveTap: _onLeaveTap,
+                  ),
 
                   if (gameState != null)
                     Padding(
@@ -170,9 +233,13 @@ class _GameBoardViewState extends State<_GameBoardView> {
 // ── Top bar (matches Figma) ────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.roomCode});
+  const _TopBar({
+    required this.roomCode,
+    required this.onLeaveTap,
+  });
 
   final String roomCode;
+  final VoidCallback onLeaveTap;
 
   @override
   Widget build(BuildContext context) {
@@ -239,9 +306,52 @@ class _TopBar extends StatelessWidget {
                   size: 20,
                 ),
               ),
+              const SizedBox(width: 10),
+              _TopBarIconButton(
+                icon: Icons.logout_rounded,
+                onTap: onLeaveTap,
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopBarIconButton extends StatelessWidget {
+  const _TopBarIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: const Color(0xFF272B43),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: const Color(0xFF373E61),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFF94A3B8),
+            size: 20,
+          ),
+        ),
       ),
     );
   }
