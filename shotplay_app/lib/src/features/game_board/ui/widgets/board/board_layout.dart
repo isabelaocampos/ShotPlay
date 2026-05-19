@@ -53,36 +53,46 @@ class BoardOverlayData {
     required this.startSquare,
     required this.endSquare,
     required this.asset,
+    this.isLong = false,
   });
 
   final int startSquare;
   final int endSquare;
   final String asset;
+  final bool isLong;
 }
+
+const Map<String, double> assetAspectRatios = {
+  'assets/images/ladder1.png': 1 / 2.5,
+  'assets/images/ladder2.png': 1 / 4.5,
+  'assets/images/ladder3.png': 1 / 3.5,
+  'assets/images/snake1.png': 1 / 2.8,
+  'assets/images/snake2.png': 1 / 2.2,
+};
 
 List<BoardOverlayData> snakeOverlayData() {
   return BoardDefinition.snakes.entries.map((entry) {
+    final distance = (entry.key - entry.value).abs();
     return BoardOverlayData(
       startSquare: entry.key,
       endSquare: entry.value,
-      asset: entry.key.isEven
-          ? 'assets/images/snake1.png'
-          : 'assets/images/snake2.png',
+      asset: '',
+      isLong: distance > 12,
     );
   }).toList();
 }
 
 List<BoardOverlayData> ladderOverlayData() {
   return BoardDefinition.ladders.entries.map((entry) {
-    final index = BoardDefinition.ladders.keys.toList().indexOf(entry.key);
+    final distance = (entry.value - entry.key).abs();
     return BoardOverlayData(
       startSquare: entry.key,
       endSquare: entry.value,
-      asset: switch (index % 3) {
-        0 => 'assets/images/ladder1.png',
-        1 => 'assets/images/ladder2.png',
-        _ => 'assets/images/ladder3.png',
-      },
+      asset: distance > 20
+          ? 'assets/images/ladder2.png'
+          : distance > 15
+              ? 'assets/images/ladder3.png'
+              : 'assets/images/ladder1.png',
     );
   }).toList();
 }
@@ -93,7 +103,7 @@ BoardOverlayPlacement snakePlacementFor(BoardOverlayData overlay, double cellSiz
     overlay.endSquare,
     cellSize,
     lengthPadding: cellSize * 0.12,
-    thickness: cellSize * 0.40,
+    thickness: cellSize * 0.55,
     rotationOffset: 0,
   );
 }
@@ -104,8 +114,8 @@ BoardOverlayPlacement ladderPlacementFor(BoardOverlayData overlay, double cellSi
     overlay.endSquare,
     cellSize,
     lengthPadding: cellSize * 0.12,
-    thickness: cellSize * 0.38,
-    rotationOffset: -math.pi / 2,
+    thickness: cellSize * 0.28,
+    rotationOffset: 0,
   );
 }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../domain/entities/board_entities.dart';
 import 'board_layout.dart';
+import 'snake_painter.dart';
 
 class SnakeOverlayLayer extends StatelessWidget {
   const SnakeOverlayLayer({
@@ -14,37 +14,12 @@ class SnakeOverlayLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snakes = snakeOverlayData();
-    final placements = [
-      _ManualOverlayPlacement(
-        left: 0.12,
-        top: 0.54,
-        width: 0.28,
-        rotation: -0.42,
-      ),
-      _ManualOverlayPlacement(
-        left: 0.56,
-        top: 0.15,
-        width: 0.22,
-        rotation: 0.28,
-      ),
-      _ManualOverlayPlacement(
-        left: 0.42,
-        top: 0.55,
-        width: 0.26,
-        rotation: -0.12,
-      ),
-    ];
-
     return Positioned.fill(
       child: IgnorePointer(
         child: Stack(
           children: [
-            for (var i = 0; i < snakes.length && i < placements.length; i++)
-              _SnakeAssetOverlay(
-                overlay: snakes[i],
-                cellSize: cellSize,
-                placement: placements[i],
-              ),
+            for (final overlay in snakes)
+              _SnakePainterOverlay(overlay: overlay, cellSize: cellSize),
           ],
         ),
       ),
@@ -52,50 +27,34 @@ class SnakeOverlayLayer extends StatelessWidget {
   }
 }
 
-class _SnakeAssetOverlay extends StatelessWidget {
-  const _SnakeAssetOverlay({
+class _SnakePainterOverlay extends StatelessWidget {
+  const _SnakePainterOverlay({
     required this.overlay,
     required this.cellSize,
-    required this.placement,
   });
 
   final BoardOverlayData overlay;
   final double cellSize;
-  final _ManualOverlayPlacement placement;
 
   @override
   Widget build(BuildContext context) {
-    final boardSize = cellSize * 7;
+    final placement = snakePlacementFor(overlay, cellSize);
+    final bodyWidth = cellSize * (overlay.isLong ? 0.09 : 0.08);
 
     return Positioned(
-      left: boardSize * placement.left,
-      top: boardSize * placement.top,
+      left: placement.left,
+      top: placement.top,
       child: Transform.rotate(
         angle: placement.rotation,
         alignment: Alignment.center,
         child: SizedBox(
-          width: boardSize * placement.width,
-          height: boardSize * (placement.width * 0.52),
-          child: Image.asset(
-            overlay.asset,
-            fit: BoxFit.contain,
+          width: placement.width,
+          height: placement.height,
+          child: CustomPaint(
+            painter: SnakePainter(bodyWidth: bodyWidth),
           ),
         ),
       ),
     );
   }
-}
-
-class _ManualOverlayPlacement {
-  const _ManualOverlayPlacement({
-    required this.left,
-    required this.top,
-    required this.width,
-    required this.rotation,
-  });
-
-  final double left;
-  final double top;
-  final double width;
-  final double rotation;
 }
