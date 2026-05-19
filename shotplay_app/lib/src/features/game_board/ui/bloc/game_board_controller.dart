@@ -12,12 +12,6 @@ import '../../../../core/constants/game_event_types.dart';
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
 
-// import '../entities/board_entities.dart';
-// import '../game_board_event_types.dart';
-// import '../usecases/roll_dice_usecase.dart';
-// import '../usecases/start_game_usecase.dart';
-// import '../usecases/watch_game_board_events_usecase.dart';
-
 enum GameBoardStatus { waiting, playing, finished }
 
 class GameBoardController extends ChangeNotifier {
@@ -26,11 +20,11 @@ class GameBoardController extends ChangeNotifier {
     required this.currentUserId,
     required this.isAdmin,
     required List<RoomPlayer> players,
-  })  : _gameEvents = gameEvents,
-        _startGame = StartGameUsecase(gameEvents),
-        _rollDice = RollDiceUsecase(EmitDiceRollEventUsecase(gameEvents)),
-        _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
-        _players = players {
+  }) : _gameEvents = gameEvents,
+       _startGame = StartGameUsecase(gameEvents),
+       _rollDice = RollDiceUsecase(EmitDiceRollEventUsecase(gameEvents)),
+       _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
+       _players = players {
     _eventsSubscription = _watchEvents.execute().listen(_onEvent);
   }
 
@@ -48,25 +42,35 @@ class GameBoardController extends ChangeNotifier {
   GameBoardStatus _status = GameBoardStatus.waiting;
   GameState? _gameState;
   bool _isRolling = false;
+  int? _animatingDiceValue;
 
   GameBoardStatus get status => _status;
   GameState? get gameState => _gameState;
   bool get isRolling => _isRolling;
+  int? get animatingDiceValue => _animatingDiceValue;
 
   bool get isMyTurn =>
       _gameState != null &&
       _gameState!.currentTurnPlayerId == currentUserId &&
-      _status == GameBoardStatus.playing;
+      _status == GameBoardStatus.playing &&
+      !_isRolling;
 
-  PlayerPosition? get myPosition => _gameState?.positions
-      .where((p) => p.playerId == currentUserId)
-      .firstOrNull;
+  PlayerPosition? get myPosition =>
+      _gameState?.positions
+          .where((p) => p.playerId == currentUserId)
+          .firstOrNull;
+
+  PlayerPosition? get winnerPosition =>
+      _gameState?.positions.where((p) => p.square >= 49).firstOrNull;
+
+  String? get winnerUsername => winnerPosition?.username;
 
   String get currentTurnUsername {
     if (_gameState == null) return '';
-    final pos = _gameState!.positions
-        .where((p) => p.playerId == _gameState!.currentTurnPlayerId)
-        .firstOrNull;
+    final pos =
+        _gameState!.positions
+            .where((p) => p.playerId == _gameState!.currentTurnPlayerId)
+            .firstOrNull;
     return pos?.username ?? '';
   }
 
@@ -102,13 +106,11 @@ class GameBoardController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final state = await _rollDice.execute(_gameState!);
-      _gameState = state;
-      final winner = state.positions.where((p) => p.square >= 49).firstOrNull;
-      if (winner != null) _status = GameBoardStatus.finished;
+      await _rollDice.execute(_gameState!);
     } catch (e) {
+
+  // ── Event listener ───────────────────────────────────────────────
       debugPrint('[BOARD] rollDice error: $e');
-    } finally {
       _isRolling = false;
       notifyListeners();
     }
@@ -119,15 +121,14 @@ class GameBoardController extends ChangeNotifier {
   void _onEvent(Map<String, dynamic> event) {
     final type = event['appEventType'] as String?;
 
-    // Estado completo del juego recibido (game.start o game.dice_roll)
-    if (type == GameBoardEventTypes.gameStart ||
-        type == GameBoardEventTypes.diceRoll) {
+    if (type == GameBoardEventTypes.gameStart) {
       try {
         final state = GameState.fromJson(event);
         _gameState = state;
         _status = GameBoardStatus.playing;
         final winner = state.positions.where((p) => p.square >= 49).firstOrNull;
         if (winner != null) _status = GameBoardStatus.finished;
+        _isRolling = false;
         notifyListeners();
       } catch (e) {
         debugPrint('[BOARD] failed to parse event: $e');
@@ -135,17 +136,105 @@ class GameBoardController extends ChangeNotifier {
       return;
     }
 
-    // El no-admin pide sync → el admin re-emite el estado actual
-    if (type == GameEventTypes.gameSync && isAdmin && _gameState != null) {
-      debugPrint('[BOARD] sync request recibido — re-emitiendo estado');
-      _gameEvents.emitEvent({
-        'appEventType': GameBoardEventTypes.gameStart,
-        ..._gameState!.toJson(),
-      }).catchError((e) {
-        debugPrint('[BOARD] re-emit error: $e');
-        return null;
-      });
+    if (type == GameBoardEventTypes.diceRoll) {
+      try {
+        final state = GameState.fromJson(event);
+        if (_gameState != null) {
+          _animateStateTransition(state);
+        } else {
+          _gameState = state;
+          _status = GameBoardStatus.playing;
+          final winner =
+              state.positions.where((p) => p.square >= 49).firstOrNull;
+          if (winner != null) _status = GameBoardStatus.finished;
+          _isRolling = false;
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('[BOARD] failed to parse event: $e');
+      }
+      return;
     }
+
+    if (type == GameEventTypes.gameSync && isAdmin && _gameState != null) {
+      debugPrint('[BOARD] sync request recibido -> re-emitiendo estado');
+      _gameEvents
+          .emitEvent({
+            'appEventType': GameBoardEventTypes.gameStart,
+            ..._gameState!.toJson(),
+          })
+          .catchError((e) {
+            debugPrint('[BOARD] re-emit error: $e');
+            return null;
+          });
+    }
+  }
+
+  Future<void> _animateStateTransition(GameState targetState) async {
+    _isRolling = true;
+    notifyListeners();
+
+    final prevPositions = _gameState!.positions;
+    final nextPositions = targetState.positions;
+
+    PlayerPosition? prevMover;
+    PlayerPosition? nextMover;
+
+    for (int i = 0; i < prevPositions.length; i++) {
+      if (prevPositions[i].square != nextPositions[i].square) {
+        prevMover = prevPositions[i];
+        nextMover = nextPositions[i];
+        break;
+      }
+    }
+
+    final diceValue = targetState.lastDiceValue;
+
+    _animatingDiceValue = diceValue;
+    notifyListeners();
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    _animatingDiceValue = null;
+    notifyListeners();
+
+    if (prevMover != null &&
+        nextMover != null &&
+        diceValue > 0 &&
+        prevMover.playerId == nextMover.playerId &&
+        prevMover.square != nextMover.square) {
+      int steps = diceValue;
+      int logicTarget = prevMover.square + steps;
+      if (logicTarget > 49) logicTarget = 49;
+
+      for (int step = 1; step <= steps; step++) {
+        int s = prevMover.square + step;
+        if (s > 49) break;
+
+        final tempPositions = List<PlayerPosition>.from(_gameState!.positions);
+        final idx = tempPositions.indexWhere(
+          (p) => p.playerId == prevMover!.playerId,
+        );
+        tempPositions[idx] = tempPositions[idx].copyWith(square: s);
+
+        _gameState = _gameState!.copyWith(positions: tempPositions);
+        notifyListeners();
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
+      if (logicTarget != nextMover.square) {
+        await Future.delayed(const Duration(milliseconds: 600));
+      }
+    }
+
+    _gameState = targetState;
+    _status = GameBoardStatus.playing;
+    final winner =
+        targetState.positions.where((p) => p.square >= 49).firstOrNull;
+    if (winner != null) _status = GameBoardStatus.finished;
+
+    _isRolling = false;
+    notifyListeners();
   }
 
   @override

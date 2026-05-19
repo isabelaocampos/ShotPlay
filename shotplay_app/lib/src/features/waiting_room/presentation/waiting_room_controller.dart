@@ -14,6 +14,9 @@ import '../domain/usecases/emit_lobby_sync_usecase.dart';
 import '../domain/usecases/fetch_room_players_usecase.dart';
 import '../domain/usecases/watch_game_events_usecase.dart';
 import '../domain/usecases/watch_room_players_usecase.dart';
+import '../domain/usecases/leave_room_usecase.dart';
+import '../domain/usecases/close_room_usecase.dart';
+import '../domain/usecases/emit_room_closed_usecase.dart';
 
 enum WaitingRoomStatus { initial, loading, waiting, error }
 
@@ -26,13 +29,19 @@ class WaitingRoomController extends ChangeNotifier {
     required FetchRoomPlayersUsecase fetchRoomPlayers,
     required EmitLobbySyncUsecase emitLobbySync,
     required EmitGameStartUsecase emitGameStart,
+    required LeaveRoomUsecase leaveRoom,
+    required CloseRoomUsecase closeRoom,
+    required EmitRoomClosedUsecase emitRoomClosed,
   })  : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository),
         _fetchRoomPlayers = fetchRoomPlayers,
         _connectGameEvents = connectGameEvents,
         _disconnectGameEvents = disconnectGameEvents,
         _watchGameEvents = watchGameEvents,
         _emitLobbySync = emitLobbySync,
-        _emitGameStart = emitGameStart;
+        _emitGameStart = emitGameStart,
+        _leaveRoom = leaveRoom,
+        _closeRoom = closeRoom,
+        _emitRoomClosed = emitRoomClosed;
 
   final WatchRoomPlayersUsecase _watchPlayersUsecase;
   final FetchRoomPlayersUsecase _fetchRoomPlayers;
@@ -41,6 +50,9 @@ class WaitingRoomController extends ChangeNotifier {
   final WatchGameEventsUsecase _watchGameEvents;
   final EmitLobbySyncUsecase _emitLobbySync;
   final EmitGameStartUsecase _emitGameStart;
+  final LeaveRoomUsecase _leaveRoom;
+  final CloseRoomUsecase _closeRoom;
+  final EmitRoomClosedUsecase _emitRoomClosed;
 
   StreamSubscription<List<RoomPlayer>>? _playersSubscription;
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
@@ -51,12 +63,14 @@ class WaitingRoomController extends ChangeNotifier {
   List<RoomPlayer> _players = const <RoomPlayer>[];
   String? _errorMessage;
   bool _gameStarted = false;
+  bool _roomClosedByAdmin = false;
   bool _navigatingToBoard = false;
 
   WaitingRoomStatus get status => _status;
   List<RoomPlayer> get players => _players;
   String? get errorMessage => _errorMessage;
   bool get gameStarted => _gameStarted;
+  bool get roomClosedByAdmin => _roomClosedByAdmin;
 
   // ── Public actions ──────────────────────────────────────────────
 
@@ -74,6 +88,41 @@ class WaitingRoomController extends ChangeNotifier {
       debugPrint('[LOBBY] game.start emitido correctamente');
     } catch (e) {
       debugPrint('[LOBBY] Error emitiendo game.start: $e');
+    }
+  }
+
+  /// Called by non-admin players to leave the room.
+  Future<void> leaveRoom(int roomId) async {
+    try {
+      _status = WaitingRoomStatus.loading;
+      notifyListeners();
+      await _leaveRoom.execute(roomId);
+    } catch (e) {
+      debugPrint('[LOBBY] Error al salir de la sala: $e');
+      _errorMessage = 'No pudimos sacarte de la sala.';
+      _status = WaitingRoomStatus.error;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Called by the admin to close the room for everyone.
+  Future<void> closeRoom(int roomId) async {
+    try {
+      _status = WaitingRoomStatus.loading;
+      notifyListeners();
+      await _emitRoomClosed.execute();
+      // Pequeño delay de gracia asegurar propagación por socket
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await _closeRoom.execute(roomId);
+      _roomClosedByAdmin = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[LOBBY] Error al cerrar la sala: $e');
+      _errorMessage = 'No pudimos cerrar la sala.';
+      _status = WaitingRoomStatus.error;
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -127,6 +176,13 @@ class WaitingRoomController extends ChangeNotifier {
     if (type == GameEventTypes.gameStart) {
       debugPrint('[LOBBY] game.start received — navigating to board');
       _gameStarted = true;
+      notifyListeners();
+      return;
+    }
+
+    if (type == LobbyEventTypes.closed) {
+      debugPrint('[LOBBY] lobby.closed received — exiting room');
+      _roomClosedByAdmin = true;
       notifyListeners();
       return;
     }

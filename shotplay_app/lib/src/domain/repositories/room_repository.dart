@@ -21,6 +21,12 @@ abstract class RoomRepository {
     required String roomCode,
     int? expectedGameId,
   });
+
+  /// Allows a participant to leave the room.
+  Future<void> leaveRoom(int roomId);
+
+  /// Allows the admin to close (delete) the room entirely.
+  Future<void> closeRoom(int roomId);
 }
 
 class RoomCodeCollisionException implements Exception {}

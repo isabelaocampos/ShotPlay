@@ -155,6 +155,37 @@ class SupabaseRoomRepository implements RoomRepository {
   }
 
   @override
+  Future<void> leaveRoom(int roomId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw NotAuthenticatedException();
+
+    try {
+      await _client
+          .from('participation')
+          .delete()
+          .eq('room_id', roomId)
+          .eq('user_id', user.id);
+      debugPrint('[ROOM] User ${user.id} left room $roomId');
+    } catch (error) {
+      throw RoomRepositoryException('No se pudo salir de la sala: $error');
+    }
+  }
+
+  @override
+  Future<void> closeRoom(int roomId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw NotAuthenticatedException();
+
+    try {
+      // Typically, deleting the room cascades to participation.
+      await _client.from('room').delete().eq('id_room', roomId);
+      debugPrint('[ROOM] User ${user.id} closed room $roomId');
+    } catch (error) {
+      throw RoomRepositoryException('No se pudo cerrar la sala: $error');
+    }
+  }
+
+  @override
   Future<List<RoomPlayer>> fetchRoomPlayers(String roomCode) async {
     final normalizedCode = RoomCodeConstants.normalize(roomCode);
     final roomData = await _client

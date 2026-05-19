@@ -5,4 +5,5 @@ class LobbyEventTypes {
   LobbyEventTypes._();
 
   static const String sync = GameEventTypes.lobbySync;
+  static const String closed = GameEventTypes.lobbyClosed;
 }

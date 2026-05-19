@@ -17,6 +17,9 @@ import '../domain/usecases/emit_game_start_usecase.dart';
 import '../domain/usecases/emit_lobby_sync_usecase.dart';
 import '../domain/usecases/fetch_room_players_usecase.dart';
 import '../domain/usecases/watch_game_events_usecase.dart';
+import '../domain/usecases/leave_room_usecase.dart';
+import '../domain/usecases/close_room_usecase.dart';
+import '../domain/usecases/emit_room_closed_usecase.dart';
 import 'waiting_room_controller.dart';
 
 class WaitingRoomScreen extends StatelessWidget {
@@ -34,14 +37,18 @@ class WaitingRoomScreen extends StatelessWidget {
     return ChangeNotifierProvider<WaitingRoomController>(
       create: (ctx) {
         final gameEvents = ctx.read<GameEventRepository>();
+        final roomRepo = ctx.read<RoomRepository>();
         return WaitingRoomController(
-          roomRepository: ctx.read<RoomRepository>(),
+          roomRepository: roomRepo,
           connectGameEvents: ConnectRoomGameEventsUsecase(gameEvents),
           disconnectGameEvents: DisconnectRoomGameEventsUsecase(gameEvents),
           watchGameEvents: WatchGameEventsUsecase(gameEvents),
-          fetchRoomPlayers: FetchRoomPlayersUsecase(ctx.read<RoomRepository>()),
+          fetchRoomPlayers: FetchRoomPlayersUsecase(roomRepo),
           emitLobbySync: EmitLobbySyncUsecase(gameEvents),
           emitGameStart: EmitGameStartUsecase(gameEvents),
+          leaveRoom: LeaveRoomUsecase(roomRepo),
+          closeRoom: CloseRoomUsecase(roomRepo),
+          emitRoomClosed: EmitRoomClosedUsecase(gameEvents),
         )..start(room.roomCode);
       },
       child: _WaitingRoomView(room: room, isAdmin: isAdmin),
@@ -81,10 +88,26 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
     });
   }
 
+  void _handleRoomClosed() {
+    if (_navigated) return;
+    _navigated = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El administrador cerró la sala.')),
+      );
+      Navigator.of(context).pop();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<WaitingRoomController>();
     final game = gameOptionFromDbId(widget.room.gameId);
+
+    if (controller.roomClosedByAdmin) {
+      _handleRoomClosed();
+    }
 
     // Cuando llega game.start por realtime, TODOS navegan al tablero
     if (controller.gameStarted) {
@@ -94,6 +117,9 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sala de espera'),
+        leading: BackButton(
+          onPressed: () => _confirmExit(context, controller),
+        ),
         actions: <Widget>[
           IconButton(
             onPressed: () => _shareCode(context),
@@ -183,6 +209,43 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Código copiado al portapapeles.')),
       );
+    }
+  }
+
+  Future<void> _confirmExit(
+      BuildContext context, WaitingRoomController controller) async {
+    final title = widget.isAdmin ? '¿Cerrar sala?' : '¿Salir de la sala?';
+    final content = widget.isAdmin
+        ? 'Esto cancelará la partida y sacará a todos los jugadores.'
+        : 'Abandonarás la sala y tendrás que volver a ingresar con el código.';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirmar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      if (widget.isAdmin) {
+        await controller.closeRoom(widget.room.idRoom);
+      } else {
+        await controller.leaveRoom(widget.room.idRoom);
+      }
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 }

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/board_entities.dart';
 
-// ── Colour palette (matches Figma design) ─────────────────────────
+// ?????? Colour palette (matches Figma design) ???????????????????????????????????????????????????????????????????????????
 const _kBg = Color(0xFF191022);
 const _kCellBorder = Color(0xFF252336);
 
 // Cell colours
-const _kYellow = Color(0xFFFFCF12); // ladder base rows (31–36, 43–48)
-const _kPink = Color(0xFFFF339A);   // snake head rows (37–42, 55–60 on 10×10)
+const _kYellow = Color(0xFFFFCF12); // ladder base rows (31???36, 43???48)
+const _kPink = Color(0xFFFF339A);   // snake head rows (37???42, 55???60 on 10??10)
 const _kLime = Color(0xFFBAFA5E);   // take-a-shot
 const _kCyan = Color(0xFF07FCFE);   // give-a-shot
 const _kPlain = Color(0xFFA50EEB);  // default faint purple
@@ -17,7 +17,7 @@ const _kPlain = Color(0xFFA50EEB);  // default faint purple
 const _kSnakeBody = Color(0xFFFFAE29);
 const _kSnakeRib = Color(0xFFFEE967);
 
-/// Returns the accent colour for [square] on the 7×7 board.
+/// Returns the accent colour for [square] on the 7??7 board.
 /// Mirrors the Figma export colours.
 Color _cellColor(int square) {
   // Give-a-shot squares (cyan)
@@ -34,11 +34,11 @@ Color _cellColor(int square) {
   if (pinkSquares.contains(square)) return _kPink;
   if (yellowSquares.contains(square)) return _kYellow;
   // Odd squares that are just plain
-  return Colors.white.withOpacity(0.0); // transparent → plain dark cell
+  return Colors.white.withOpacity(0.0); // transparent ??? plain dark cell
 }
 
 /// Converts a 1-based square number to a [row, col] in the grid where
-/// row 0 is the TOP row (square 43–49) and col 0 is the LEFT column.
+/// row 0 is the TOP row (square 43???49) and col 0 is the LEFT column.
 /// Uses the boustrophedon (snake-path) numbering of the reference board.
 ({int row, int col}) squareToGridPos(int square, {int size = 7}) {
   assert(square >= 1 && square <= size * size);
@@ -362,8 +362,7 @@ class _LadderPaintDelegate extends CustomPainter {
       old.bx != bx || old.by != by;
 }
 
-// ── Player Token ───────────────────────────────────────────────────
-
+// Player Token
 const _tokenColors = [
   Color(0xFFBFFBF9), // cyan-ish
   Color(0xFFFEE967), // yellow
@@ -401,7 +400,9 @@ class _PlayerToken extends StatelessWidget {
 
     final color = _tokenColors[position.avatarIndex % _tokenColors.length];
 
-    return Positioned(
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       left: cx - r,
       top: cy - r,
       child: Container(

@@ -5,14 +5,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/entities/room_session.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
+import '../../../../domain/repositories/room_repository.dart';
+import '../../../../core/routing/app_routes.dart';
 import '../bloc/game_board_controller.dart';
 import '../sections/game_feed_section.dart';
 import '../widgets/board_status_bar.dart';
 import '../widgets/game_board_widget.dart';
 import '../widgets/roll_dice_button.dart';
 
-/// Entry point for the game board screen.
-/// Receives [room], [players] and [isAdmin] from the waiting room.
 class GameBoardScreen extends StatelessWidget {
   const GameBoardScreen({
     super.key,
@@ -62,20 +62,163 @@ class _GameBoardView extends StatefulWidget {
 }
 
 class _GameBoardViewState extends State<_GameBoardView> {
+  GameBoardController? _controller;
+  int? _lastDiceShowed;
+  bool _winnerDialogShown = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final controller = context.read<GameBoardController>();
+      _controller = context.read<GameBoardController>();
+      _controller?.addListener(_onControllerChange);
+
       if (widget.isAdmin) {
-        // Admin inicia el juego y emite el estado al canal
-        controller.startGame();
+        _controller?.startGame();
       } else {
-        // No-admin pide al admin que re-emita el estado actual
-        controller.requestSync();
+        _controller?.requestSync();
       }
     });
+  }
+
+  void _onControllerChange() {
+    if (!mounted) return;
+
+    if (_controller!.status == GameBoardStatus.finished &&
+        !_winnerDialogShown) {
+      _winnerDialogShown = true;
+      _showWinnerDialog();
+      return;
+    }
+
+    if (_controller!.animatingDiceValue != null &&
+        _controller!.animatingDiceValue != _lastDiceShowed) {
+      _lastDiceShowed = _controller!.animatingDiceValue;
+
+      showDialog(
+        context: context,
+        barrierColor: Colors.black87,
+        barrierDismissible: false,
+        builder:
+            (_) => PopScope(
+              canPop: false,
+              child: AlertDialog(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🎲', style: TextStyle(fontSize: 100)),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Sacó ',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      );
+    } else if (_controller!.animatingDiceValue == null &&
+        _lastDiceShowed != null) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      _lastDiceShowed = null;
+    }
+  }
+
+  Future<void> _showWinnerDialog() async {
+    final winnerName = _controller?.winnerUsername ?? 'Alguien';
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (ctx) => PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: const Text('Partida terminada'),
+              content: Text('Ganó $winnerName. Todos volverán al lobby.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('Ir al lobby'),
+                ),
+              ],
+            ),
+          ),
+    );
+
+    if (mounted) {
+      _goToLobby();
+    }
+  }
+
+  void _goToLobby() {
+    Navigator.of(context).popUntil(
+      (route) => route.settings.name == AppRoutes.home || route.isFirst,
+    );
+  }
+
+  Future<void> _confirmExit() async {
+    final title = widget.isAdmin ? '¿Cerrar partida?' : '¿Salir de la partida?';
+    final content =
+        widget.isAdmin
+            ? 'Si sales, la partida terminará para todos y la sala se cerrará.'
+            : 'Saldrás de la partida y tendrás que volver a unirte a la sala.';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Confirmar',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true && mounted) {
+      final roomRepo = context.read<RoomRepository>();
+      try {
+        if (widget.isAdmin) {
+          await roomRepo.closeRoom(widget.room.idRoom);
+        } else {
+          await roomRepo.leaveRoom(widget.room.idRoom);
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        Navigator.of(context).popUntil(
+          (route) => route.settings.name == AppRoutes.home || route.isFirst,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onControllerChange);
+    super.dispose();
   }
 
   @override
@@ -95,7 +238,10 @@ class _GameBoardViewState extends State<_GameBoardView> {
         child: SafeArea(
           child: Column(
             children: [
-              _TopBar(roomCode: widget.room.roomCode),
+              _TopBar(
+                roomCode: widget.room.roomCode,
+                onExitPressed: _confirmExit,
+              ),
 
               if (gameState != null)
                 Padding(
@@ -128,13 +274,14 @@ class _GameBoardViewState extends State<_GameBoardView> {
                                 ),
                               ),
                               padding: const EdgeInsets.all(5),
-                              child: gameState != null
-                                  ? GameBoardWidget(
-                                      positions: gameState.positions,
-                                      highlightSquare:
-                                          controller.myPosition?.square,
-                                    )
-                                  : const _LoadingBoard(),
+                              child:
+                                  gameState != null
+                                      ? GameBoardWidget(
+                                        positions: gameState.positions,
+                                        highlightSquare:
+                                            controller.myPosition?.square,
+                                      )
+                                      : const _LoadingBoard(),
                             ),
                           ),
 
@@ -170,18 +317,17 @@ class _GameBoardViewState extends State<_GameBoardView> {
   }
 }
 
-// ── Top bar (matches Figma) ────────────────────────────────────────
-
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.roomCode});
+  const _TopBar({required this.roomCode, required this.onExitPressed});
 
   final String roomCode;
+  final VoidCallback onExitPressed;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: const Color(0xFF22172D),
         border: Border.all(color: const Color(0x337F0DF2)),
@@ -189,17 +335,25 @@ class _TopBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // App name
-          const Text(
-            'ShotPlay',
-            style: TextStyle(
-              color: Color(0xFFF1F5F9),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white70),
+                onPressed: onExitPressed,
+                tooltip: 'Salir',
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'ShotPlay',
+                style: TextStyle(
+                  color: Color(0xFFF1F5F9),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
-          // Room code
           Row(
             children: [
               Column(
@@ -249,8 +403,6 @@ class _TopBar extends StatelessWidget {
     );
   }
 }
-
-// ── Loading mientras el tablero se inicializa ─────────────────────
 
 class _LoadingBoard extends StatelessWidget {
   const _LoadingBoard();

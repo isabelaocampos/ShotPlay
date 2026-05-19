@@ -141,6 +141,31 @@ class LocalRoomRepository implements RoomRepository {
     return controller.stream;
   }
 
+  @override
+  Future<void> leaveRoom(int roomId) async {
+    final entry = _rooms.entries.where((e) => e.value.idRoom == roomId).firstOrNull;
+    if (entry == null) return;
+    
+    final normalizedCode = entry.key;
+    final players = _players[normalizedCode] ?? [];
+    
+    // Simulate current user leaving (removing the guest)
+    players.removeWhere((p) => p.userId == 'local-guest');
+    _emit(normalizedCode);
+  }
+
+  @override
+  Future<void> closeRoom(int roomId) async {
+    final entry = _rooms.entries.where((e) => e.value.idRoom == roomId).firstOrNull;
+    if (entry == null) return;
+    
+    final normalizedCode = entry.key;
+    _rooms.remove(normalizedCode);
+    _players.remove(normalizedCode);
+    _controllers[normalizedCode]?.close();
+    _controllers.remove(normalizedCode);
+  }
+
   void _emit(String roomCode) {
     final normalizedCode = RoomCodeConstants.normalize(roomCode);
     final controller = _controllers[normalizedCode];

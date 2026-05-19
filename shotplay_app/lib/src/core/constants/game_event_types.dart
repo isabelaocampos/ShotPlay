@@ -7,7 +7,8 @@ class GameEventTypes {
   // ── Lobby ──────────────────────────────────────────────────────
   /// Pide a todos los clientes refrescar la lista de participantes.
   static const String lobbySync = 'lobby.sync';
-
+  /// Avisa que el admin cerró la sala, forzando la salida.
+  static const String lobbyClosed = 'lobby.closed';
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';
