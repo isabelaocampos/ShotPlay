@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../routing/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../utils/supabase_safe.dart';
 import '../../features/game_catalog/presentation/game_catalog_screen.dart';
 import '../../features/profile/domain/repository/profile_repository.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
@@ -30,7 +31,8 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Supabase.instance.client.auth.currentSession == null) {
+      if (!mounted || !isSupabaseReady()) return;
+      if (safeCurrentUserId() == null) {
         Navigator.pushReplacementNamed(context, AppRoutes.welcome);
       }
     });

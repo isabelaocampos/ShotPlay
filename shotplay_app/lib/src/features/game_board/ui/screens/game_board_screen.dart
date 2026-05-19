@@ -7,14 +7,24 @@ import '../../../../domain/entities/room_session.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
 import '../../../../domain/repositories/room_repository.dart';
 import '../../../../core/routing/app_routes.dart';
+import '../../../../core/utils/supabase_safe.dart';
 import '../../domain/entities/board_entities.dart';
+import '../../domain/entities/challenge_card.dart';
 import '../bloc/game_board_controller.dart';
 import '../widgets/board/game_board_widget.dart';
 import '../widgets/hud/board_status_bar.dart';
 import '../widgets/hud/game_feed_section.dart';
 import '../widgets/hud/roll_dice_button.dart';
+import '../widgets/modals/give_shots_dialog.dart';
 import '../widgets/modals/give_shot_dialog.dart';
+import '../widgets/modals/never_have_i_ever_dialog.dart';
+import '../widgets/modals/most_likely_to_dialog.dart';
+import '../widgets/modals/revenge_shot_dialog.dart';
+import '../widgets/modals/silent_round_dialog.dart';
+import '../widgets/modals/split_shots_dialog.dart';
 import '../widgets/modals/take_shot_dialog.dart';
+import '../widgets/modals/trap_cell_dialog.dart';
+import '../widgets/modals/waterfall_dialog.dart';
 import '../widgets/modals/truth_or_dare_dialog.dart';
 import '../widgets/dice_roll_dialog.dart';
 import '../widgets/penalty_challenge_dialog.dart';
@@ -33,7 +43,7 @@ class GameBoardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final currentUserId = safeCurrentUserId() ?? '';
 
     return ChangeNotifierProvider<GameBoardController>(
       create:
@@ -140,6 +150,9 @@ class _GameBoardViewState extends State<_GameBoardView> {
   void _showSpecialCellDialog() {
     final specialCell = _controller?.pendingSpecialCell;
     if (specialCell == null) return;
+    final challengeCard = _controller?.pendingChallengeCard;
+    final trapState = _controller?.pendingTrapState;
+    final punisherUsername = _controller?.lastPunisherUsername ?? 'someone';
 
     showDialog<void>(
       context: context,
@@ -155,6 +168,78 @@ class _GameBoardViewState extends State<_GameBoardView> {
                 _controller?.respondToTakeShot();
               },
             ),
+          SpecialCellType.waterfall => WaterfallDialog(
+              onConfirm: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToWaterfall();
+              },
+            ),
+          SpecialCellType.splitShots => SplitShotsDialog(
+              players: widget.players,
+              currentUserId: widget.currentUserId,
+              onConfirm: (distribution) {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToSplitShots(distribution);
+              },
+            ),
+          SpecialCellType.giveShots => GiveShotsDialog(
+              players: widget.players,
+              currentUserId: widget.currentUserId,
+              onConfirm: (player) {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToGiveShots(player.userId);
+              },
+            ),
+          SpecialCellType.revengeShot => RevengeShotDialog(
+              punisherName: punisherUsername,
+              onConfirm: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToRevengeShot();
+              },
+            ),
+          SpecialCellType.neverHaveIEver => NeverHaveIEverDialog(
+              card: challengeCard ?? ChallengeCard.randomNeverHaveIEver(),
+              onDrink: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToNeverHaveIEver(haveDoneIt: true);
+              },
+              onPass: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToNeverHaveIEver(haveDoneIt: false);
+              },
+            ),
+          SpecialCellType.mostLikelyTo => MostLikelyToDialog(
+              card: challengeCard ?? ChallengeCard.randomMostLikelyTo(),
+              players: widget.players,
+              currentUserId: widget.currentUserId,
+              onConfirm: (player) {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToMostLikelyTo(player.userId);
+              },
+            ),
+          SpecialCellType.trapCell => TrapCellDialog(
+              isTriggered: _controller?.pendingTrapTriggered ?? false,
+              trapState: trapState,
+              onConfirm: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToTrapCell();
+              },
+            ),
+          SpecialCellType.silentRound => SilentRoundDialog(
+              onConfirm: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToSilentRound();
+              },
+            ),
           SpecialCellType.giveShot => GiveShotDialog(
               cell: specialCell,
               players: widget.players,
@@ -162,7 +247,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
               onConfirm: (player) {
                 Navigator.of(ctx).pop();
                 _specialDialogShowing = false;
-                _controller?.respondToGiveShot(player.userId);
+                _controller?.respondToGiveShots(player.userId);
               },
             ),
           SpecialCellType.truthOrDare => TruthOrDareDialog(
@@ -368,8 +453,11 @@ class _GameBoardViewState extends State<_GameBoardView> {
                                   gameState != null
                                       ? GameBoardWidget(
                                         positions: gameState.positions,
-                                        highlightSquare:
-                                            controller.myPosition?.square,
+                                    highlightSquare: controller.myPosition?.square,
+                                    activeTraps: gameState.activeTraps,
+                                    silentPlayerId: gameState.silentPlayerId.isEmpty
+                                      ? null
+                                      : gameState.silentPlayerId,
                                       )
                                       : const _LoadingBoard(),
                             ),

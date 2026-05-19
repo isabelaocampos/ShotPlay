@@ -47,12 +47,28 @@ class _SpecialCellOverlay extends StatelessWidget {
       SpecialCellType.takeShot => Icons.local_bar_rounded,
       SpecialCellType.giveShot => Icons.gps_fixed_rounded,
       SpecialCellType.truthOrDare => Icons.help_outline_rounded,
+      SpecialCellType.waterfall => Icons.water_drop_rounded,
+      SpecialCellType.splitShots => Icons.call_split_rounded,
+      SpecialCellType.giveShots => Icons.local_bar_rounded,
+      SpecialCellType.revengeShot => Icons.flash_on_rounded,
+      SpecialCellType.neverHaveIEver => Icons.psychology_rounded,
+      SpecialCellType.mostLikelyTo => Icons.groups_rounded,
+      SpecialCellType.trapCell => Icons.warning_amber_rounded,
+      SpecialCellType.silentRound => Icons.volume_off_rounded,
     };
 
     final glowColor = switch (cell.type) {
       SpecialCellType.takeShot => const Color(0xFFBAFA5E),
       SpecialCellType.giveShot => const Color(0xFF07FCFE),
       SpecialCellType.truthOrDare => const Color(0xFFFFBDF5),
+      SpecialCellType.waterfall => const Color(0xFF07FCFE),
+      SpecialCellType.splitShots => const Color(0xFFFFBDF5),
+      SpecialCellType.giveShots => const Color(0xFFFEE967),
+      SpecialCellType.revengeShot => const Color(0xFFFF339A),
+      SpecialCellType.neverHaveIEver => const Color(0xFFA50EEB),
+      SpecialCellType.mostLikelyTo => const Color(0xFFBFFBF9),
+      SpecialCellType.trapCell => const Color(0xFFF97316),
+      SpecialCellType.silentRound => const Color(0xFF94A3B8),
     };
 
     return Positioned(

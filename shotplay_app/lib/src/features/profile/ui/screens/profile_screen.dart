@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shotplay_app/src/core/routing/app_routes.dart';
+import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/features/profile/ui/bloc/profile_bloc.dart';
 import 'package:shotplay_app/src/features/profile/ui/widgets/profile_background.dart';
 import 'package:shotplay_app/src/features/profile/ui/widgets/profile_stat_card.dart';
@@ -18,14 +19,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = safeCurrentUserId();
     if (userId != null) {
       context.read<ProfileBloc>().add(ProfileLoadRequested(userId));
     }
   }
 
   Future<void> _logout() async {
-    await Supabase.instance.client.auth.signOut();
+    if (isSupabaseReady()) {
+      await Supabase.instance.client.auth.signOut();
+    }
     if (mounted) {
       Navigator.pushReplacementNamed(context, AppRoutes.welcome);
     }

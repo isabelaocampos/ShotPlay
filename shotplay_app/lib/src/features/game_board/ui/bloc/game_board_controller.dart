@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shotplay_app/src/features/game_board/domain/entities/board_entities.dart';
+import 'package:shotplay_app/src/features/game_board/domain/entities/challenge_card.dart';
+import 'package:shotplay_app/src/features/game_board/domain/entities/trap_state.dart';
 import 'package:shotplay_app/src/features/game_board/domain/game_board_event_types.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_roll_event_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
@@ -52,6 +54,9 @@ class GameBoardController extends ChangeNotifier {
 
   // Pending special party cell waiting for the current player's response.
   SpecialCell? _pendingSpecialCell;
+  ChallengeCard? _pendingChallengeCard;
+  TrapState? _pendingTrapState;
+  bool _pendingTrapTriggered = false;
 
   // True when the challenge path pre-animated locally; tells
   // _animateStateTransition to skip the dice+step animation (already seen).
@@ -63,6 +68,9 @@ class GameBoardController extends ChangeNotifier {
   int? get animatingDiceValue => _animatingDiceValue;
   PenaltyChallenge? get pendingChallenge => _pendingChallenge;
   SpecialCell? get pendingSpecialCell => _pendingSpecialCell;
+  ChallengeCard? get pendingChallengeCard => _pendingChallengeCard;
+  TrapState? get pendingTrapState => _pendingTrapState;
+  bool get pendingTrapTriggered => _pendingTrapTriggered;
 
   bool get isMyTurn =>
       _gameState != null &&
@@ -80,6 +88,13 @@ class GameBoardController extends ChangeNotifier {
       _gameState?.positions.where((p) => p.square >= 49).firstOrNull;
 
   String? get winnerUsername => winnerPosition?.username;
+
+    String? get lastPunisherUsername => _gameState == null
+      ? null
+      : _gameState!.positions
+        .where((player) => player.playerId == _gameState!.lastPunisherPlayerId)
+        .firstOrNull
+        ?.username;
 
   String get currentTurnUsername {
     if (_gameState == null) return '';
@@ -118,6 +133,12 @@ class GameBoardController extends ChangeNotifier {
   /// Otherwise, applies the move directly and broadcasts the new state.
   Future<void> rollDice() async {
     if (!isMyTurn || _isRolling) return;
+
+    if (_gameState?.silentPlayerId == currentUserId) {
+      _gameState = _gameState!.copyWith(silentPlayerId: '');
+      notifyListeners();
+    }
+
     _isRolling = true;
     notifyListeners();
 
@@ -126,6 +147,7 @@ class GameBoardController extends ChangeNotifier {
       final rawSquare = _gameState!.rawSquareForCurrentPlayer(diceValue);
       final challenge = PenaltyChallenge.forSquare(rawSquare);
       final specialCell = BoardDefinition.specialCellFor(rawSquare);
+      final trap = _gameState!.trapAt(rawSquare);
 
       if (challenge != null) {
         // Show dice + token animation before presenting the challenge dialog.
@@ -135,11 +157,30 @@ class GameBoardController extends ChangeNotifier {
         _pendingChallenge = challenge;
         _isRolling = false;
         notifyListeners();
+      } else if (trap != null) {
+        await _animateLocalMove(diceValue, rawSquare);
+        _localAnimDone = true;
+        _pendingDiceValue = diceValue;
+        _pendingSpecialCell = SpecialCell(
+          square: rawSquare,
+          type: SpecialCellType.trapCell,
+        );
+        _pendingTrapState = trap;
+        _pendingTrapTriggered = true;
+        _isRolling = false;
+        notifyListeners();
       } else if (specialCell != null) {
         await _animateLocalMove(diceValue, rawSquare);
         _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingSpecialCell = specialCell;
+        _pendingChallengeCard = switch (specialCell.type) {
+          SpecialCellType.neverHaveIEver => ChallengeCard.randomNeverHaveIEver(),
+          SpecialCellType.mostLikelyTo => ChallengeCard.randomMostLikelyTo(),
+          _ => null,
+        };
+        _pendingTrapTriggered = false;
+        _pendingTrapState = null;
         _isRolling = false;
         notifyListeners();
       } else {
@@ -176,7 +217,7 @@ class GameBoardController extends ChangeNotifier {
         diceValue,
         finalSquare,
         eventLog: eventLog,
-        incrementShots: shouldCountShot,
+        shotsDelta: shouldCountShot ? 1 : 0,
       );
     } catch (e) {
       debugPrint('[BOARD] respondToChallenge error: $e');
@@ -200,9 +241,9 @@ class GameBoardController extends ChangeNotifier {
         specialCell.square,
         eventLog: _buildSpecialCellLog(
           specialCell,
-          eventLabel: 'Yo tomo',
+          eventLabel: 'tomó 2 shots',
         ),
-        incrementShots: true,
+        shotsDelta: 2,
       );
     } catch (e) {
       debugPrint('[BOARD] respondToTakeShot error: $e');
@@ -211,7 +252,65 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
-  Future<void> respondToGiveShot(String targetPlayerId) async {
+  Future<void> respondToWaterfall() async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog: _buildSpecialCellLog(specialCell),
+        shotsDelta: 1,
+        mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToWaterfall error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToSplitShots(Map<String, int> distribution) async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    final recipients = _gameState!.positions
+        .where((player) => distribution.containsKey(player.playerId))
+        .map((player) => '${player.username}=${distribution[player.playerId]}')
+        .join(', ');
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog: '${_gameState!.positions.firstWhere((p) => p.playerId == moverId).username} repartió 4 shots: $recipients',
+        mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToSplitShots error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToGiveShots(String targetPlayerId) async {
     final specialCell = _pendingSpecialCell;
     if (specialCell == null || _gameState == null) return;
 
@@ -220,14 +319,192 @@ class GameBoardController extends ChangeNotifier {
             .firstOrNull
             ?.username ??
         'another player';
+    final moverId = _gameState!.currentTurnPlayerId;
 
     await _resolveSpecialCell(
       specialCell,
       _buildSpecialCellLog(
         specialCell,
-        eventLabel: 'Elige a $targetUsername para tomar',
+        eventLabel: 'dio 2 shots a $targetUsername',
       ),
+      mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
     );
+  }
+
+  Future<void> respondToRevengeShot() async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    final punisher = _gameState!.positions
+        .where((p) => p.playerId == _gameState!.lastPunisherPlayerId)
+        .firstOrNull;
+
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog:
+            '${_gameState!.positions.firstWhere((p) => p.playerId == moverId).username} activó REVENGE SHOT${punisher != null ? ' con ${punisher.username}' : ''}',
+        shotsDelta: 1,
+        mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToRevengeShot error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToNeverHaveIEver({required bool haveDoneIt}) async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    final card = _pendingChallengeCard;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog:
+            '${_gameState!.positions.firstWhere((p) => p.playerId == moverId).username} lanzó NEVER HAVE I EVER${card != null ? ': ${card.prompt}' : ''}',
+        shotsDelta: haveDoneIt ? 1 : 0,
+        mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToNeverHaveIEver error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToMostLikelyTo(String targetPlayerId) async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    final targetUsername = _gameState!.positions
+            .where((p) => p.playerId == targetPlayerId)
+            .firstOrNull
+            ?.username ??
+        'another player';
+    final card = _pendingChallengeCard;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog:
+            '${_gameState!.positions.firstWhere((p) => p.playerId == moverId).username} eligió a $targetUsername en MOST LIKELY TO${card != null ? ': ${card.prompt}' : ''}',
+        mutateState: (state) => state.copyWith(lastPunisherPlayerId: moverId),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToMostLikelyTo error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToTrapCell() async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    final moverName = _gameState!.positions
+        .firstWhere((p) => p.playerId == moverId)
+        .username;
+    final trapState = _pendingTrapState;
+    final triggered = _pendingTrapTriggered;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingTrapState = null;
+    _pendingTrapTriggered = false;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog: triggered
+            ? '$moverName activó un TRAP y bebió 3 shots'
+            : '$moverName dejó un TRAP en la casilla ${specialCell.square}',
+        shotsDelta: triggered ? 3 : 0,
+        mutateState: (state) {
+          if (triggered && trapState != null) {
+            return state.removeTrapAt(trapState.square).copyWith(
+              lastPunisherPlayerId: trapState.ownerPlayerId,
+            );
+          }
+
+          return state.addTrap(
+            TrapState(
+              square: specialCell.square,
+              ownerPlayerId: moverId,
+              ownerUsername: moverName,
+            ),
+          ).copyWith(lastPunisherPlayerId: moverId);
+        },
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToTrapCell error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToSilentRound() async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final diceValue = _pendingDiceValue;
+    final moverId = _gameState!.currentTurnPlayerId;
+    final moverName = _gameState!.positions
+        .firstWhere((p) => p.playerId == moverId)
+        .username;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _pendingChallengeCard = null;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog: '$moverName inició una SILENT ROUND',
+        mutateState: (state) => state.copyWith(
+          silentPlayerId: moverId,
+          lastPunisherPlayerId: moverId,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToSilentRound error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
   }
 
   Future<void> respondToTruthOrDare(bool choseTruth) async {
@@ -289,29 +566,32 @@ class GameBoardController extends ChangeNotifier {
 
   String _buildSpecialCellLog(
     SpecialCell cell, {
-    required String eventLabel,
+    String eventLabel = '',
   }) {
     final rollerName = _gameState!.positions
         .firstWhere((p) => p.playerId == _gameState!.currentTurnPlayerId)
         .username;
 
-    final cellLabel = switch (cell.type) {
-      SpecialCellType.takeShot => 'Take 2 shots',
-      SpecialCellType.giveShot => 'Dale el shot',
-      SpecialCellType.truthOrDare => 'Verdad o Reto',
-    };
-
     return switch (cell.type) {
       SpecialCellType.takeShot => '$rollerName tomó 2 shots en la casilla ${cell.square}',
-      SpecialCellType.giveShot => '$rollerName activó $cellLabel en la casilla ${cell.square} y $eventLabel',
-      SpecialCellType.truthOrDare => '$rollerName activó $cellLabel en la casilla ${cell.square} y $eventLabel',
+      SpecialCellType.giveShot => '$rollerName activó GIVE SHOT en la casilla ${cell.square}',
+      SpecialCellType.truthOrDare => '$rollerName activó Truth or Dare en la casilla ${cell.square}',
+      SpecialCellType.waterfall => '$rollerName activó WATERFALL',
+      SpecialCellType.splitShots => '$rollerName activó SPLIT THE SHOTS',
+      SpecialCellType.giveShots => '$rollerName activó GIVE 2 SHOTS',
+      SpecialCellType.revengeShot => '$rollerName activó REVENGE SHOT',
+      SpecialCellType.neverHaveIEver => '$rollerName activó NEVER HAVE I EVER',
+      SpecialCellType.mostLikelyTo => '$rollerName activó MOST LIKELY TO',
+      SpecialCellType.trapCell => '$rollerName activó TRAP CELL',
+      SpecialCellType.silentRound => '$rollerName activó SILENT ROUND',
     };
   }
 
   Future<void> _resolveSpecialCell(
     SpecialCell cell,
-    String eventLog,
-  ) async {
+    String eventLog, {
+    GameState Function(GameState state)? mutateState,
+  }) async {
     final diceValue = _pendingDiceValue;
     _pendingSpecialCell = null;
     _pendingDiceValue = 0;
@@ -320,7 +600,12 @@ class GameBoardController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _applyAndEmit(diceValue, cell.square, eventLog: eventLog);
+      await _applyAndEmit(
+        diceValue,
+        cell.square,
+        eventLog: eventLog,
+        mutateState: mutateState,
+      );
     } catch (e) {
       debugPrint('[BOARD] resolveSpecialCell error: $e');
       _isRolling = false;
@@ -328,22 +613,29 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
-  Future<void> _applyAndEmit(int diceValue, int finalSquare,
-      {String eventLog = '', bool incrementShots = false}) async {
-    final shotsCount = incrementShots
-        ? _gameState!.shotsTakenByCurrentPlayer + 1
+  Future<void> _applyAndEmit(
+    int diceValue,
+    int finalSquare, {
+    String eventLog = '',
+    int shotsDelta = 0,
+    GameState Function(GameState state)? mutateState,
+  }) async {
+    final shotsCount = shotsDelta > 0
+        ? _gameState!.shotsTakenByCurrentPlayer + shotsDelta
         : _gameState!.shotsTakenByCurrentPlayer;
     var newState = _gameState!.applyFinalMove(
       finalSquare,
       diceValue,
       shotsTakenByCurrentPlayer: shotsCount,
     );
+    if (mutateState != null) {
+      newState = mutateState(newState);
+    }
     if (eventLog.isNotEmpty) {
       newState = newState.copyWith(lastEventLog: eventLog);
     }
     await _emitEvent.execute(newState);
 
-    // Emit a dedicated victory event so SHOT-NEW-4 can react to it.
     final winner = newState.positions.where((p) => p.square >= 49).firstOrNull;
     if (winner != null) {
       await _gameEvents

@@ -54,12 +54,28 @@ class BoardGrid extends StatelessWidget {
           SpecialCellType.takeShot => const Color(0xFFBAFA5E),
           SpecialCellType.giveShot => const Color(0xFF07FCFE),
           SpecialCellType.truthOrDare => const Color(0xFFFFBDF5),
+          SpecialCellType.waterfall => const Color(0xFF07FCFE),
+          SpecialCellType.splitShots => const Color(0xFFFFBDF5),
+          SpecialCellType.giveShots => const Color(0xFFFEE967),
+          SpecialCellType.revengeShot => const Color(0xFFFF339A),
+          SpecialCellType.neverHaveIEver => const Color(0xFFA50EEB),
+          SpecialCellType.mostLikelyTo => const Color(0xFFBFFBF9),
+          SpecialCellType.trapCell => const Color(0xFFF97316),
+          SpecialCellType.silentRound => const Color(0xFF94A3B8),
         },
         overlay: _SpecialCellPulse(
           color: switch (specialCell.type) {
             SpecialCellType.takeShot => const Color(0xFFBAFA5E),
             SpecialCellType.giveShot => const Color(0xFF07FCFE),
             SpecialCellType.truthOrDare => const Color(0xFFFFBDF5),
+            SpecialCellType.waterfall => const Color(0xFF07FCFE),
+            SpecialCellType.splitShots => const Color(0xFFFFBDF5),
+            SpecialCellType.giveShots => const Color(0xFFFEE967),
+            SpecialCellType.revengeShot => const Color(0xFFFF339A),
+            SpecialCellType.neverHaveIEver => const Color(0xFFA50EEB),
+            SpecialCellType.mostLikelyTo => const Color(0xFFBFFBF9),
+            SpecialCellType.trapCell => const Color(0xFFF97316),
+            SpecialCellType.silentRound => const Color(0xFF94A3B8),
           },
         ),
         isSpecial: true,
@@ -95,16 +111,16 @@ class _SpecialCellPulse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 12,
-      height: 12,
+      width: 10,
+      height: 10,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.88),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.35),
-            blurRadius: 10,
-            spreadRadius: 1.5,
+            color: color.withValues(alpha: 0.28),
+            blurRadius: 8,
+            spreadRadius: 1,
           ),
         ],
       ),

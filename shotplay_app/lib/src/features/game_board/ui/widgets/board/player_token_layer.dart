@@ -8,10 +8,12 @@ class PlayerTokenLayer extends StatelessWidget {
     super.key,
     required this.positions,
     required this.cellSize,
+    this.silentPlayerId,
   });
 
   final List<PlayerPosition> positions;
   final double cellSize;
+  final String? silentPlayerId;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +25,7 @@ class PlayerTokenLayer extends StatelessWidget {
               position: position,
               allPositions: positions,
               cellSize: cellSize,
+              isSilent: position.playerId == silentPlayerId,
             ),
         ],
       ),
@@ -35,11 +38,13 @@ class _PlayerToken extends StatelessWidget {
     required this.position,
     required this.allPositions,
     required this.cellSize,
+    required this.isSilent,
   });
 
   final PlayerPosition position;
   final List<PlayerPosition> allPositions;
   final double cellSize;
+  final bool isSilent;
 
   static const _tokenColors = [
     Color(0xFFBFFBF9),
@@ -163,6 +168,31 @@ class _PlayerToken extends StatelessWidget {
                       ),
               ),
             ),
+            if (isSilent)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0E1018),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF07FCFE).withValues(alpha: 0.52), width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF07FCFE).withValues(alpha: 0.30),
+                        blurRadius: 8,
+                        spreadRadius: 0.5,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.volume_off_rounded,
+                    size: 10,
+                    color: Color(0xFF07FCFE),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

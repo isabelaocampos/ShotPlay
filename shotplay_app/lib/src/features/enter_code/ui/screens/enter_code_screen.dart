@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shotplay_app/src/core/constants/room_code_constants.dart';
 import 'package:shotplay_app/src/core/routing/app_routes.dart';
+import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/core/utils/upper_case_text_formatter.dart';
 import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -42,7 +43,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
   @override
   void initState() {
     super.initState();
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = safeCurrentUserId();
     if (userId != null) {
       context.read<EnterCodeBloc>().add(EnterCodeLoadRequested(userId));
     }

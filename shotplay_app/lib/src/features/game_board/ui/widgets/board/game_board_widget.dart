@@ -5,6 +5,7 @@ import 'board_grid.dart';
 import 'ladder_overlay_layer.dart';
 import 'player_token_layer.dart';
 import 'snake_overlay_layer.dart';
+import 'trap_overlay_layer.dart';
 import 'special_cell_overlay_layer.dart';
 
 class GameBoardWidget extends StatelessWidget {
@@ -12,10 +13,14 @@ class GameBoardWidget extends StatelessWidget {
     super.key,
     required this.positions,
     this.highlightSquare,
+    this.activeTraps = const [],
+    this.silentPlayerId,
   });
 
   final List<PlayerPosition> positions;
   final int? highlightSquare;
+  final List<TrapState> activeTraps;
+  final String? silentPlayerId;
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +70,14 @@ class GameBoardWidget extends StatelessWidget {
               ),
               BoardGrid(highlightSquare: highlightSquare),
               SpecialCellOverlayLayer(cellSize: cellSize),
+              TrapOverlayLayer(cellSize: cellSize, traps: activeTraps),
               SnakeOverlayLayer(cellSize: cellSize),
               LadderOverlayLayer(cellSize: cellSize),
-              PlayerTokenLayer(positions: positions, cellSize: cellSize),
+              PlayerTokenLayer(
+                positions: positions,
+                cellSize: cellSize,
+                silentPlayerId: silentPlayerId,
+              ),
             ],
           ),
         );
