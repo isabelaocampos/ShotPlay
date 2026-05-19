@@ -7,13 +7,17 @@ import '../../../../domain/entities/room_session.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
 import '../../../../domain/repositories/room_repository.dart';
 import '../../../../core/routing/app_routes.dart';
+import '../../domain/entities/board_entities.dart';
 import '../bloc/game_board_controller.dart';
-import '../sections/game_feed_section.dart';
-import '../widgets/board_status_bar.dart';
+import '../widgets/board/game_board_widget.dart';
+import '../widgets/hud/board_status_bar.dart';
+import '../widgets/hud/game_feed_section.dart';
+import '../widgets/hud/roll_dice_button.dart';
+import '../widgets/modals/give_shot_dialog.dart';
+import '../widgets/modals/take_shot_dialog.dart';
+import '../widgets/modals/truth_or_dare_dialog.dart';
 import '../widgets/dice_roll_dialog.dart';
-import '../widgets/game_board_widget.dart';
 import '../widgets/penalty_challenge_dialog.dart';
-import '../widgets/roll_dice_button.dart';
 
 class GameBoardScreen extends StatelessWidget {
   const GameBoardScreen({
@@ -43,6 +47,7 @@ class GameBoardScreen extends StatelessWidget {
         room: room,
         isAdmin: isAdmin,
         currentUserId: currentUserId,
+        players: players,
       ),
     );
   }
@@ -53,11 +58,13 @@ class _GameBoardView extends StatefulWidget {
     required this.room,
     required this.isAdmin,
     required this.currentUserId,
+    required this.players,
   });
 
   final RoomSession room;
   final bool isAdmin;
   final String currentUserId;
+  final List<RoomPlayer> players;
 
   @override
   State<_GameBoardView> createState() => _GameBoardViewState();
@@ -68,6 +75,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
   int? _lastDiceShowed;
   bool _winnerDialogShown = false;
   bool _challengeDialogShowing = false;
+  bool _specialDialogShowing = false;
 
   @override
   void initState() {
@@ -101,6 +109,11 @@ class _GameBoardViewState extends State<_GameBoardView> {
       _showPenaltyChallengeDialog();
     }
 
+    if (_controller!.pendingSpecialCell != null && !_specialDialogShowing) {
+      _specialDialogShowing = true;
+      _showSpecialCellDialog();
+    }
+
     if (_controller!.animatingDiceValue != null &&
         _controller!.animatingDiceValue != _lastDiceShowed) {
       _lastDiceShowed = _controller!.animatingDiceValue;
@@ -122,6 +135,52 @@ class _GameBoardViewState extends State<_GameBoardView> {
       }
       _lastDiceShowed = null;
     }
+  }
+
+  void _showSpecialCellDialog() {
+    final specialCell = _controller?.pendingSpecialCell;
+    if (specialCell == null) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: switch (specialCell.type) {
+          SpecialCellType.takeShot => TakeShotDialog(
+              cell: specialCell,
+              onConfirm: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToTakeShot();
+              },
+            ),
+          SpecialCellType.giveShot => GiveShotDialog(
+              cell: specialCell,
+              players: widget.players,
+              currentUserId: widget.currentUserId,
+              onConfirm: (player) {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToGiveShot(player.userId);
+              },
+            ),
+          SpecialCellType.truthOrDare => TruthOrDareDialog(
+              cell: specialCell,
+              onTruth: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToTruthOrDare(true);
+              },
+              onDare: () {
+                Navigator.of(ctx).pop();
+                _specialDialogShowing = false;
+                _controller?.respondToTruthOrDare(false);
+              },
+            ),
+        },
+      ),
+    );
   }
 
   void _showPenaltyChallengeDialog() {
@@ -272,10 +331,10 @@ class _GameBoardViewState extends State<_GameBoardView> {
 
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 500),
+                      constraints: const BoxConstraints(maxWidth: 640),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -283,14 +342,28 @@ class _GameBoardViewState extends State<_GameBoardView> {
                             aspectRatio: 1,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2D3043),
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(
-                                  color: const Color(0xFF252336),
-                                  width: 2,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFF20142B).withValues(alpha: 0.96),
+                                    const Color(0xFF0F0A18).withValues(alpha: 0.96),
+                                  ],
                                 ),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: const Color(0xFF07FCFE).withValues(alpha: 0.30),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF5F0F86).withValues(alpha: 0.22),
+                                    blurRadius: 24,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
                               ),
-                              padding: const EdgeInsets.all(5),
+                              padding: const EdgeInsets.all(6),
                               child:
                                   gameState != null
                                       ? GameBoardWidget(

@@ -6,6 +6,7 @@ class RoomPlayer {
     required this.username,
     required this.isHost,
     required this.isReady,
+    this.avatarUrl,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class RoomPlayer {
   final String username;
   final bool isHost;
   final bool isReady;
+  final String? avatarUrl;
 
   String get statusLabel {
     if (isHost) return 'Anfitrión';

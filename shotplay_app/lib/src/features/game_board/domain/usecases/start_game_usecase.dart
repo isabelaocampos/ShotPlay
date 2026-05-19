@@ -17,6 +17,7 @@ class StartGameUsecase {
               username: e.value.username,
               square: 1,
               avatarIndex: e.key % 4,
+            avatarUrl: e.value.avatarUrl,
             ))
         .toList();
 

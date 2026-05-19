@@ -52,6 +52,7 @@ class LocalRoomRepository implements RoomRepository {
         username: 'Anfitrión',
         isHost: true,
         isReady: true,
+        avatarUrl: null,
       ),
     ];
     _emit(normalizedCode);
@@ -103,6 +104,7 @@ class LocalRoomRepository implements RoomRepository {
         username: 'Invitado',
         isHost: false,
         isReady: true,
+        avatarUrl: null,
       ),
     );
     _emit(normalizedCode);

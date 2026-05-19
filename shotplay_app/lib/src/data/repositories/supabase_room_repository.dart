@@ -273,6 +273,7 @@ class SupabaseRoomRepository implements RoomRepository {
 
     return rows.map((row) {
       final userId = (row['user_id'] as String?) ?? '';
+      final avatarUrl = _resolveAvatarUrl(row);
       return RoomPlayer(
         id: row['id_participation']?.toString() ?? '',
         roomCode: roomCode,
@@ -280,6 +281,7 @@ class SupabaseRoomRepository implements RoomRepository {
         username: usernameOf[userId] ?? 'Jugador',
         isHost: userId == adminId,
         isReady: (row['status'] as String?) == 'active',
+        avatarUrl: avatarUrl,
       );
     }).toList();
   }
@@ -311,5 +313,23 @@ class SupabaseRoomRepository implements RoomRepository {
       debugPrint('[PARTICIPANTS] Profile batch fetch failed: $e');
       return <String, String>{};
     }
+  }
+
+  String? _resolveAvatarUrl(Map<String, dynamic> row) {
+    for (final key in const [
+      'avatar_url',
+      'image_url',
+      'photo_url',
+      'profile_image_url',
+      'avatar',
+      'picture',
+      'image',
+    ]) {
+      final value = row[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
   }
 }

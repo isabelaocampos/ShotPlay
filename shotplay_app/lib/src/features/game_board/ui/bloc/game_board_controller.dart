@@ -50,6 +50,9 @@ class GameBoardController extends ChangeNotifier {
   PenaltyChallenge? _pendingChallenge;
   int _pendingDiceValue = 0;
 
+  // Pending special party cell waiting for the current player's response.
+  SpecialCell? _pendingSpecialCell;
+
   // True when the challenge path pre-animated locally; tells
   // _animateStateTransition to skip the dice+step animation (already seen).
   bool _localAnimDone = false;
@@ -59,6 +62,7 @@ class GameBoardController extends ChangeNotifier {
   bool get isRolling => _isRolling;
   int? get animatingDiceValue => _animatingDiceValue;
   PenaltyChallenge? get pendingChallenge => _pendingChallenge;
+  SpecialCell? get pendingSpecialCell => _pendingSpecialCell;
 
   bool get isMyTurn =>
       _gameState != null &&
@@ -121,6 +125,7 @@ class GameBoardController extends ChangeNotifier {
       final diceValue = _rollDice.execute();
       final rawSquare = _gameState!.rawSquareForCurrentPlayer(diceValue);
       final challenge = PenaltyChallenge.forSquare(rawSquare);
+      final specialCell = BoardDefinition.specialCellFor(rawSquare);
 
       if (challenge != null) {
         // Show dice + token animation before presenting the challenge dialog.
@@ -128,6 +133,13 @@ class GameBoardController extends ChangeNotifier {
         _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingChallenge = challenge;
+        _isRolling = false;
+        notifyListeners();
+      } else if (specialCell != null) {
+        await _animateLocalMove(diceValue, rawSquare);
+        _localAnimDone = true;
+        _pendingDiceValue = diceValue;
+        _pendingSpecialCell = specialCell;
         _isRolling = false;
         notifyListeners();
       } else {
@@ -148,6 +160,9 @@ class GameBoardController extends ChangeNotifier {
     final challenge = _pendingChallenge!;
     final diceValue = _pendingDiceValue;
     final eventLog = _buildChallengeLog(challenge, accepted);
+    final shouldCountShot = accepted &&
+      (challenge.type == PenaltyChallengeType.takeShotToClimb ||
+        challenge.type == PenaltyChallengeType.takeShootToStay);
     _pendingChallenge = null;
     _pendingDiceValue = 0;
 
@@ -157,12 +172,75 @@ class GameBoardController extends ChangeNotifier {
     try {
       final finalSquare =
           accepted ? challenge.acceptSquare : challenge.rejectSquare;
-      await _applyAndEmit(diceValue, finalSquare, eventLog: eventLog);
+      await _applyAndEmit(
+        diceValue,
+        finalSquare,
+        eventLog: eventLog,
+        incrementShots: shouldCountShot,
+      );
     } catch (e) {
       debugPrint('[BOARD] respondToChallenge error: $e');
       _isRolling = false;
       notifyListeners();
     }
+  }
+
+  Future<void> respondToTakeShot() async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+    final diceValue = _pendingDiceValue;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(
+        diceValue,
+        specialCell.square,
+        eventLog: _buildSpecialCellLog(
+          specialCell,
+          eventLabel: 'Yo tomo',
+        ),
+        incrementShots: true,
+      );
+    } catch (e) {
+      debugPrint('[BOARD] respondToTakeShot error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> respondToGiveShot(String targetPlayerId) async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    final targetUsername = _gameState!.positions
+            .where((p) => p.playerId == targetPlayerId)
+            .firstOrNull
+            ?.username ??
+        'another player';
+
+    await _resolveSpecialCell(
+      specialCell,
+      _buildSpecialCellLog(
+        specialCell,
+        eventLabel: 'Elige a $targetUsername para tomar',
+      ),
+    );
+  }
+
+  Future<void> respondToTruthOrDare(bool choseTruth) async {
+    final specialCell = _pendingSpecialCell;
+    if (specialCell == null || _gameState == null) return;
+
+    await _resolveSpecialCell(
+      specialCell,
+      _buildSpecialCellLog(
+        specialCell,
+        eventLabel: choseTruth ? 'eligió Verdad' : 'eligió Reto',
+      ),
+    );
   }
 
   // ── Private helpers ─────────────────────────────────────────────
@@ -209,9 +287,53 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
+  String _buildSpecialCellLog(
+    SpecialCell cell, {
+    required String eventLabel,
+  }) {
+    final rollerName = _gameState!.positions
+        .firstWhere((p) => p.playerId == _gameState!.currentTurnPlayerId)
+        .username;
+
+    final cellLabel = switch (cell.type) {
+      SpecialCellType.takeShot => 'Yo tomo',
+      SpecialCellType.giveShot => 'Dale el shot',
+      SpecialCellType.truthOrDare => 'Verdad o Reto',
+    };
+
+    return '$rollerName hit $cellLabel at square ${cell.square} and $eventLabel';
+  }
+
+  Future<void> _resolveSpecialCell(
+    SpecialCell cell,
+    String eventLog,
+  ) async {
+    final diceValue = _pendingDiceValue;
+    _pendingSpecialCell = null;
+    _pendingDiceValue = 0;
+    _localAnimDone = true;
+    _isRolling = true;
+    notifyListeners();
+
+    try {
+      await _applyAndEmit(diceValue, cell.square, eventLog: eventLog);
+    } catch (e) {
+      debugPrint('[BOARD] resolveSpecialCell error: $e');
+      _isRolling = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _applyAndEmit(int diceValue, int finalSquare,
-      {String eventLog = ''}) async {
-    var newState = _gameState!.applyFinalMove(finalSquare, diceValue);
+      {String eventLog = '', bool incrementShots = false}) async {
+    final shotsCount = incrementShots
+        ? _gameState!.shotsTakenByCurrentPlayer + 1
+        : _gameState!.shotsTakenByCurrentPlayer;
+    var newState = _gameState!.applyFinalMove(
+      finalSquare,
+      diceValue,
+      shotsTakenByCurrentPlayer: shotsCount,
+    );
     if (eventLog.isNotEmpty) {
       newState = newState.copyWith(lastEventLog: eventLog);
     }
@@ -272,6 +394,10 @@ class GameBoardController extends ChangeNotifier {
         debugPrint('[BOARD] failed to parse diceRoll event: $e');
       }
       return;
+    }
+
+    if (_pendingSpecialCell != null && type == GameBoardEventTypes.diceRoll) {
+      // Special cell resolution is local, so remote broadcasts already carry the final state.
     }
 
     if (type == GameBoardEventTypes.gameVictory) {
@@ -378,6 +504,7 @@ class GameBoardController extends ChangeNotifier {
   void dispose() {
     _eventsSubscription?.cancel();
     _pendingChallenge = null;
+    _pendingSpecialCell = null;
     super.dispose();
   }
 }

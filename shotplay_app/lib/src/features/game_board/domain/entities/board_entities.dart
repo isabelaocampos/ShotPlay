@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Represents the type of a board cell with its colour group.
 enum CellType {
   normal,
@@ -5,6 +7,21 @@ enum CellType {
   ladderBase, // ladder bottom — player goes up
   shotTake, // lime/green — take a shot
   shotGive, // cyan — give a shot
+}
+
+/// Special game-only cells that are not part of snakes or ladders.
+enum SpecialCellType {
+  takeShot,
+  giveShot,
+  truthOrDare,
+}
+
+/// Immutable description of a special board cell.
+class SpecialCell {
+  const SpecialCell({required this.square, required this.type});
+
+  final int square;
+  final SpecialCellType type;
 }
 
 /// A single square on the 7×7 board (numbered 1–49, bottom-left to top-right
@@ -30,27 +47,49 @@ class BoardDefinition {
   BoardDefinition._();
 
   /// Snakes: key = head square, value = tail square (where player lands).
-  static const Map<int, int> snakes = {
-    12: 2,  // snake at 12 → drops to 2
-    40: 22, // snake at 40 → drops to 22
-    44: 37, // snake at 44 → drops to 37
-  };
+    static const Map<int, int> snakes = {
+      12: 2,  // snake at 12 → drops to 2
+      40: 22, // snake at 40 → drops to 22
+      44: 37, // snake at 44 → drops to 37
+    };
 
-  /// Ladders: key = base square, value = top square (where player lands).
-  static const Map<int, int> ladders = {
-    4: 20,  // ladder at 4 → climbs to 20
-    9: 31,  // ladder at 9 → climbs to 31
-    20: 38, // ladder at 20 → climbs to 38 (double-check image)
-    28: 46, // ladder at 28 → climbs to 46
-  };
+    /// Ladders: key = base square, value = top square (where player lands).
+    static const Map<int, int> ladders = {
+      4: 20,  // ladder at 4 → climbs to 20
+      9: 31,  // ladder at 9 → climbs to 31
+      20: 38, // ladder at 20 → climbs to 38 (double-check image)
+      28: 46, // ladder at 28 → climbs to 46
+    };
 
-  /// Truth-or-dare squares (pink board uses these as 'shot' squares).
-  static const Set<int> shotSquares = {7, 14, 21, 30, 31};
+  /// Special party cells separate from snakes and ladders.
+  static const List<SpecialCell> specialCells = [
+    SpecialCell(square: 7, type: SpecialCellType.takeShot),
+    SpecialCell(square: 14, type: SpecialCellType.giveShot),
+    SpecialCell(square: 21, type: SpecialCellType.truthOrDare),
+    SpecialCell(square: 30, type: SpecialCellType.takeShot),
+    SpecialCell(square: 31, type: SpecialCellType.giveShot),
+  ];
+
+  static const Set<int> shotSquares = {7, 14, 30, 31};
+
+  static SpecialCell? specialCellFor(int square) {
+    for (final cell in specialCells) {
+      if (cell.square == square) return cell;
+    }
+    return null;
+  }
 
   static CellType typeOf(int square) {
     if (snakes.containsKey(square)) return CellType.snakeHead;
     if (ladders.containsKey(square)) return CellType.ladderBase;
-    if (shotSquares.contains(square)) return CellType.shotTake;
+    final specialCell = specialCellFor(square);
+    if (specialCell != null) {
+      return switch (specialCell.type) {
+        SpecialCellType.takeShot => CellType.shotTake,
+        SpecialCellType.giveShot => CellType.shotGive,
+        SpecialCellType.truthOrDare => CellType.shotTake,
+      };
+    }
     return CellType.normal;
   }
 }
@@ -62,18 +101,21 @@ class PlayerPosition {
     required this.username,
     required this.square, // 1–49, 0 = not started
     required this.avatarIndex, // 0,1,2,3 → colour token
+    this.avatarUrl,
   });
 
   final String playerId;
   final String username;
   final int square;
   final int avatarIndex;
+  final String? avatarUrl;
 
-  PlayerPosition copyWith({int? square}) => PlayerPosition(
+  PlayerPosition copyWith({int? square, String? avatarUrl}) => PlayerPosition(
         playerId: playerId,
         username: username,
         square: square ?? this.square,
         avatarIndex: avatarIndex,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
       );
 }
 
@@ -137,7 +179,11 @@ class GameState {
 
   /// Applies [finalSquare] as the current player's resolved position and
   /// advances the turn. [diceValue] is preserved for animation.
-  GameState applyFinalMove(int finalSquare, int diceValue) {
+  GameState applyFinalMove(
+    int finalSquare,
+    int diceValue, {
+    int shotsTakenByCurrentPlayer = 0,
+  }) {
     if (positions.isEmpty) return this;
 
     final mover = currentTurnPlayerId; // capture BEFORE advancing
@@ -155,7 +201,7 @@ class GameState {
       positions: updatedPositions,
       currentTurnPlayerId: playerIds[nextIndex],
       lastDiceValue: diceValue,
-      shotsTakenByCurrentPlayer: 0,
+      shotsTakenByCurrentPlayer: shotsTakenByCurrentPlayer,
       lastMovedPlayerId: mover,
       lastEventLog: '', // cleared; controller sets it when there was a challenge
     );
@@ -181,6 +227,7 @@ class GameState {
                   'username': p.username,
                   'square': p.square,
                   'avatarIndex': p.avatarIndex,
+                  'avatarUrl': p.avatarUrl,
                 })
             .toList(),
         'currentTurnPlayerId': currentTurnPlayerId,
@@ -200,6 +247,7 @@ class GameState {
                 username: e['username'] as String,
                 square: (e['square'] as num).toInt(),
                 avatarIndex: (e['avatarIndex'] as num).toInt(),
+                avatarUrl: e['avatarUrl'] as String?,
               ))
           .toList(),
       currentTurnPlayerId: json['currentTurnPlayerId'] as String? ?? '',
@@ -276,4 +324,19 @@ class PenaltyChallenge {
     }
     return null;
   }
+}
+
+/// Visual data for a single board cell used by the UI layer.
+class BoardCellData {
+  const BoardCellData({
+    required this.square,
+    required this.borderColor,
+    this.overlay,
+    this.isSpecial = false,
+  });
+
+  final int square;
+  final Color borderColor;
+  final Widget? overlay;
+  final bool isSpecial;
 }
