@@ -145,50 +145,12 @@ BoardOverlayPlacement _placementBetweenSquares(
   );
   final angle = math.atan2(edgeDy, edgeDx) + rotationOffset;
   final length = edgeDistance + lengthPadding;
-  }).toList();
-}
-
-List<BoardOverlayData> ladderOverlayData() {
-  return BoardDefinition.ladders.entries.map((entry) {
-    final index = BoardDefinition.ladders.keys.toList().indexOf(entry.key);
-    return BoardOverlayData(
-      startSquare: entry.key,
-      endSquare: entry.value,
-      asset: switch (index % 3) {
-        0 => 'assets/images/ladder1.png',
-        1 => 'assets/images/ladder2.png',
-        _ => 'assets/images/ladder3.png',
-      },
-    );
-  }).toList();
-}
-
-BoardOverlayPlacement snakePlacementFor(BoardOverlayData overlay, double cellSize) {
-  return _placementBetweenSquares(
-    overlay.startSquare,
-    overlay.endSquare,
-    cellSize,
-    lengthPadding: cellSize * 0.12,
-    thickness: cellSize * 0.40,
-    rotationOffset: 0,
+  return BoardOverlayPlacement(
+    left: midpoint.dx - length / 2,
+    top: midpoint.dy - thickness / 2,
+    width: length,
+    height: thickness,
+    rotation: angle,
   );
 }
 
-BoardOverlayPlacement ladderPlacementFor(BoardOverlayData overlay, double cellSize) {
-  return _placementBetweenSquares(
-    overlay.startSquare,
-    overlay.endSquare,
-    cellSize,
-    lengthPadding: cellSize * 0.12,
-    thickness: cellSize * 0.38,
-    rotationOffset: -math.pi / 2,
-  );
-}
-
-BoardOverlayPlacement _placementBetweenSquares(
-  int startSquare,
-  int endSquare,
-  double cellSize, {
-  final distance = math.sqrt(dx * dx + dy * dy);
-  final safeDistance = distance == 0 ? 1.0 : distance;
-  final unitX = dx / safeDistance;
