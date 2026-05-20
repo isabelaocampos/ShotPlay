@@ -54,6 +54,17 @@ flutter run
 
 ---
 
+## Pruebas multijugador
+
+Para validar el juego en tiempo real, abre dos terminales de prueba ubicadas en `shotplay_app/` y ejecuta `flutter run` en cada una (idealmente en emuladores/dispositivos distintos).
+
+Usa estas credenciales para iniciar sesión y poder jugar:
+
+- Cuenta 1: multimedia.mr16@gmail.com | clave: prueba1234
+- Cuenta 2: caviedesghost@gmail.com | clave: Holasoygerman01
+
+---
+
 ## Flujos de navegación
 
 ### Flujo 1 — Autenticación
