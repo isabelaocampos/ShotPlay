@@ -228,6 +228,7 @@ class GameState {
     int finalSquare,
     int diceValue, {
     int shotsTakenByCurrentPlayer = 0,
+    Set<String> skipPlayerIds = const <String>{},
   }) {
     if (positions.isEmpty) return this;
 
@@ -240,7 +241,15 @@ class GameState {
 
     final playerIds = positions.map((p) => p.playerId).toList();
     final currentIndex = playerIds.indexOf(mover);
-    final nextIndex = (currentIndex + 1) % playerIds.length;
+    var nextIndex = currentIndex;
+    var attempts = 0;
+    do {
+      nextIndex = (nextIndex + 1) % playerIds.length;
+      attempts++;
+    } while (
+      skipPlayerIds.contains(playerIds[nextIndex]) &&
+      attempts < playerIds.length
+    );
 
     return copyWith(
       positions: updatedPositions,
@@ -254,7 +263,10 @@ class GameState {
 
   /// Convenience: rolls dice and auto-resolves snake/ladder without player choice.
   /// Used only for the no-challenge path (normal squares).
-  GameState applyDiceRoll(int diceValue) {
+  GameState applyDiceRoll(
+    int diceValue, {
+    Set<String> skipPlayerIds = const <String>{},
+  }) {
     final rawSquare = rawSquareForCurrentPlayer(diceValue);
     int finalSquare = rawSquare;
     if (BoardDefinition.snakes.containsKey(rawSquare)) {
@@ -262,7 +274,11 @@ class GameState {
     } else if (BoardDefinition.ladders.containsKey(rawSquare)) {
       finalSquare = BoardDefinition.ladders[rawSquare]!;
     }
-    return applyFinalMove(finalSquare, diceValue);
+    return applyFinalMove(
+      finalSquare,
+      diceValue,
+      skipPlayerIds: skipPlayerIds,
+    );
   }
 
   Map<String, dynamic> toJson() => {

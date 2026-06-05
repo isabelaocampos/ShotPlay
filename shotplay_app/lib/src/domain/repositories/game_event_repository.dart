@@ -1,4 +1,10 @@
 abstract class GameEventRepository {
+  /// Whether a room channel is currently subscribed.
+  bool get isConnected;
+
+  /// Room code of the active channel, if any.
+  String? get connectedRoomCode;
+
   /// Joins the realtime broadcast channel for [roomCode].
   ///
   /// Idempotent when already connected to the same room.

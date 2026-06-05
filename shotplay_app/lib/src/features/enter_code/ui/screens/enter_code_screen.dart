@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shotplay_app/src/core/constants/room_code_constants.dart';
 import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
+import 'package:shotplay_app/src/domain/entities/room_entry_destination.dart';
 import 'package:shotplay_app/src/core/utils/upper_case_text_formatter.dart';
 import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -87,11 +89,41 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
       listener: (context, state) {
         if (state is EnterCodeJoinSuccess) {
           final navigator = Navigator.of(context);
+          final result = state.result;
+          final currentUserId = safeCurrentUserId();
+          final isAdmin = currentUserId != null &&
+              currentUserId == result.room.adminId;
+
           navigator.pop();
-          navigator.pushNamed(
-            AppRoutes.waitingRoom,
-            arguments: state.room,
-          );
+
+          switch (result.destination) {
+            case RoomEntryDestination.waitingRoom:
+              navigator.pushNamed(
+                AppRoutes.waitingRoom,
+                arguments: result.room,
+              );
+            case RoomEntryDestination.gameBoard:
+              debugPrint(
+                '[NAVIGATION] Navigating to GameScreen '
+                '(${result.room.roomCode})',
+              );
+              navigator.pushNamed(
+                AppRoutes.gameBoard,
+                arguments: <String, dynamic>{
+                  'room': result.room,
+                  'players': result.players,
+                  'isAdmin': isAdmin,
+                  'isReconnect': result.isReconnect,
+                  'persistedGameState': result.persistedGameState,
+                },
+              );
+            case RoomEntryDestination.roomFinished:
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Esta partida ya finalizó.'),
+                ),
+              );
+          }
         } else if (state is EnterCodeError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),

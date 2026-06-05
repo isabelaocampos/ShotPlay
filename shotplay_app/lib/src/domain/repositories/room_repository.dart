@@ -1,3 +1,5 @@
+import '../entities/room_entry_result.dart';
+import '../entities/room_lifecycle_status.dart';
 import '../entities/room_player.dart';
 import '../entities/room_session.dart';
 
@@ -12,21 +14,25 @@ abstract class RoomRepository {
 
   Stream<List<RoomPlayer>> watchRoomPlayers(String roomCode);
 
-  /// One-shot fetch of current participants (used for lobby refresh).
   Future<List<RoomPlayer>> fetchRoomPlayers(String roomCode);
 
-  /// Looks up a room by code, adds the current user as a participant, and
-  /// returns the session. [expectedGameId] optionally validates the room game.
-  Future<RoomSession> joinRoom({
+  /// Joins or re-enters a room and resolves the correct navigation destination.
+  Future<RoomEntryResult> enterRoom({
     required String roomCode,
     int? expectedGameId,
   });
 
-  /// Allows a participant to leave the room.
+  /// Marks the current user as intentionally left (keeps row for history).
   Future<void> leaveRoom(int roomId);
 
   /// Allows the admin to close (delete) the room entirely.
   Future<void> closeRoom(int roomId);
+
+  Future<void> updateRoomStatus(int roomId, RoomLifecycleStatus status);
+
+  Future<void> markParticipationActive(int roomId);
+
+  Future<void> markParticipationDisconnected(int roomId);
 }
 
 class RoomCodeCollisionException implements Exception {}
@@ -44,6 +50,11 @@ class RoomFullException implements Exception {
 class RoomGameMismatchException implements Exception {
   @override
   String toString() => 'Este código pertenece a otro juego.';
+}
+
+class RoomFinishedException implements Exception {
+  @override
+  String toString() => 'Esta partida ya finalizó.';
 }
 
 class AlreadyInRoomException implements Exception {

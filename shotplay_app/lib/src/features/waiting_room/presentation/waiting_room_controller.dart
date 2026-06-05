@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/game_event_types.dart';
 import '../../../domain/entities/room_player.dart';
+import '../../../domain/entities/room_lifecycle_status.dart';
 import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../../session/domain/usecases/update_room_status_usecase.dart';
 import '../domain/lobby_event_types.dart';
 import '../domain/usecases/connect_room_game_events_usecase.dart';
 import '../domain/usecases/disconnect_room_game_events_usecase.dart';
@@ -32,6 +34,7 @@ class WaitingRoomController extends ChangeNotifier {
     required LeaveRoomUsecase leaveRoom,
     required CloseRoomUsecase closeRoom,
     required EmitRoomClosedUsecase emitRoomClosed,
+    required UpdateRoomStatusUsecase updateRoomStatus,
   })  : _watchPlayersUsecase = WatchRoomPlayersUsecase(roomRepository),
         _fetchRoomPlayers = fetchRoomPlayers,
         _connectGameEvents = connectGameEvents,
@@ -41,7 +44,8 @@ class WaitingRoomController extends ChangeNotifier {
         _emitGameStart = emitGameStart,
         _leaveRoom = leaveRoom,
         _closeRoom = closeRoom,
-        _emitRoomClosed = emitRoomClosed;
+        _emitRoomClosed = emitRoomClosed,
+        _updateRoomStatus = updateRoomStatus;
 
   final WatchRoomPlayersUsecase _watchPlayersUsecase;
   final FetchRoomPlayersUsecase _fetchRoomPlayers;
@@ -53,11 +57,13 @@ class WaitingRoomController extends ChangeNotifier {
   final LeaveRoomUsecase _leaveRoom;
   final CloseRoomUsecase _closeRoom;
   final EmitRoomClosedUsecase _emitRoomClosed;
+  final UpdateRoomStatusUsecase _updateRoomStatus;
 
   StreamSubscription<List<RoomPlayer>>? _playersSubscription;
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
   Timer? _refreshDebounce;
   String? _roomCode;
+  int? _roomId;
 
   WaitingRoomStatus _status = WaitingRoomStatus.initial;
   List<RoomPlayer> _players = const <RoomPlayer>[];
@@ -83,7 +89,14 @@ class WaitingRoomController extends ChangeNotifier {
   /// El admin llama a esto. Emite game.start por el canal Supabase
   /// para que TODOS los jugadores suscritos naveguen al tablero.
   Future<void> emitGameStart() async {
+    final roomId = _roomId;
+    if (roomId == null) return;
+
     try {
+      await _updateRoomStatus.execute(
+        roomId,
+        RoomLifecycleStatus.inProgress,
+      );
       await _emitGameStart.execute();
       debugPrint('[LOBBY] game.start emitido correctamente');
     } catch (e) {
@@ -126,8 +139,20 @@ class WaitingRoomController extends ChangeNotifier {
     }
   }
 
-  Future<void> start(String roomCode) async {
+  Future<void> start({
+    required String roomCode,
+    required int roomId,
+    RoomLifecycleStatus roomStatus = RoomLifecycleStatus.waiting,
+  }) async {
     _roomCode = roomCode;
+    _roomId = roomId;
+
+    if (roomStatus == RoomLifecycleStatus.inProgress) {
+      debugPrint('[RECONNECT] Room already in progress — redirecting to board');
+      _gameStarted = true;
+      notifyListeners();
+      return;
+    }
     _status = WaitingRoomStatus.loading;
     _errorMessage = null;
     notifyListeners();
@@ -187,13 +212,15 @@ class WaitingRoomController extends ChangeNotifier {
       return;
     }
 
-    if (type != LobbyEventTypes.sync) return;
-
-    final roomCode = _roomCode;
-    if (roomCode == null) return;
-
-    debugPrint('[LOBBY] lobby.sync received — scheduling participant refresh');
-    _scheduleRefresh(roomCode);
+    if (type == GameEventTypes.playerDisconnected ||
+        type == GameEventTypes.playerReconnected ||
+        type == LobbyEventTypes.sync) {
+      final roomCode = _roomCode;
+      if (roomCode == null) return;
+      debugPrint('[LOBBY] Participant refresh triggered by $type');
+      _scheduleRefresh(roomCode);
+      return;
+    }
   }
 
   void _subscribeToPostgresStream(String roomCode) {

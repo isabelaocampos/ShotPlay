@@ -13,6 +13,12 @@ class LocalGameEventRepository implements GameEventRepository {
   StreamController<Map<String, dynamic>>? _eventController;
 
   @override
+  bool get isConnected => _connectedRoomCode != null && _eventController != null;
+
+  @override
+  String? get connectedRoomCode => _connectedRoomCode;
+
+  @override
   Future<void> connect(String roomCode) async {
     if (_connectedRoomCode == roomCode && _eventController != null) {
       return;

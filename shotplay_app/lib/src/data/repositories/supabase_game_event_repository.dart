@@ -20,6 +20,12 @@ class SupabaseGameEventRepository implements GameEventRepository {
   String? _connectedRoomCode;
 
   @override
+  bool get isConnected => _channel != null && _connectedRoomCode != null;
+
+  @override
+  String? get connectedRoomCode => _connectedRoomCode;
+
+  @override
   Future<void> connect(String roomCode) async {
     if (_connectedRoomCode == roomCode && _channel != null) {
       return;
@@ -82,7 +88,7 @@ class SupabaseGameEventRepository implements GameEventRepository {
     _channel = channel;
     _eventController = controller;
     _connectedRoomCode = roomCode;
-    debugPrint('[PUBSUB] Subscription success for room:$roomCode');
+    debugPrint('[PUBSUB] Connected successfully to room:$roomCode');
   }
 
   @override

@@ -12,6 +12,7 @@ import 'domain/entities/game_option.dart';
 import 'domain/entities/room_session.dart';
 import 'domain/repositories/game_event_repository.dart';
 import 'domain/repositories/game_repository.dart';
+import 'domain/repositories/game_session_repository.dart';
 import 'domain/repositories/room_repository.dart';
 import 'features/auth/data/repository/auth_repo_impl.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
@@ -36,11 +37,13 @@ class ShotPlayApp extends StatelessWidget {
     required this.roomRepository,
     required this.gameRepository,
     required this.gameEventRepository,
+    required this.gameSessionRepository,
   });
 
   final RoomRepository roomRepository;
   final GameRepository gameRepository;
   final GameEventRepository gameEventRepository;
+  final GameSessionRepository gameSessionRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +51,7 @@ class ShotPlayApp extends StatelessWidget {
       providers: [
         Provider<RoomRepository>.value(value: roomRepository),
         Provider<GameEventRepository>.value(value: gameEventRepository),
+        Provider<GameSessionRepository>.value(value: gameSessionRepository),
         Provider<ProfileRepository>(create: (_) => ProfileRepositoryImpl()),
       ],
       child: MaterialApp(
@@ -108,8 +112,7 @@ class ShotPlayApp extends StatelessWidget {
                 builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
               );
             case AppRoutes.gameBoard:
-              final args =
-                  settings.arguments as Map<String, dynamic>;
+              final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute<void>(
                 settings: settings,
                 builder: (_) => GameBoardScreen(
@@ -117,6 +120,9 @@ class ShotPlayApp extends StatelessWidget {
                   players: (args['players'] as List<dynamic>)
                       .cast<RoomPlayer>(),
                   isAdmin: args['isAdmin'] as bool,
+                  isReconnect: args['isReconnect'] as bool? ?? false,
+                  persistedGameState: args['persistedGameState']
+                      as Map<String, dynamic>?,
                 ),
               );
             default:

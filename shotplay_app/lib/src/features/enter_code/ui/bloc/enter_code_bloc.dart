@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shotplay_app/src/domain/entities/room_session.dart';
+import 'package:shotplay_app/src/domain/entities/room_entry_destination.dart';
+import 'package:shotplay_app/src/domain/entities/room_entry_result.dart';
 import 'package:shotplay_app/src/domain/repositories/room_repository.dart';
+import 'package:shotplay_app/src/domain/repositories/game_event_repository.dart';
+import 'package:shotplay_app/src/features/session/domain/usecases/ensure_room_channel_connected_usecase.dart';
 import 'package:shotplay_app/src/features/enter_code/domain/model/enter_code_user.dart';
 import 'package:shotplay_app/src/features/enter_code/domain/usecases/get_enter_code_user_usecase.dart';
 import 'package:shotplay_app/src/features/enter_code/domain/usecases/join_room_usecase.dart';
@@ -52,8 +55,8 @@ class EnterCodeJoining extends EnterCodeState {
 }
 
 class EnterCodeJoinSuccess extends EnterCodeState {
-  const EnterCodeJoinSuccess(this.room);
-  final RoomSession room;
+  const EnterCodeJoinSuccess(this.result);
+  final RoomEntryResult result;
 }
 
 class EnterCodeError extends EnterCodeState {
@@ -67,8 +70,10 @@ class EnterCodeBloc extends Bloc<EnterCodeEvent, EnterCodeState> {
   EnterCodeBloc({
     required GetEnterCodeUserUsecase getUser,
     required JoinRoomUsecase joinRoom,
+    required EnsureRoomChannelConnectedUsecase ensureChannelConnected,
   })  : _getUser = getUser,
         _joinRoom = joinRoom,
+        _ensureChannelConnected = ensureChannelConnected,
         super(const EnterCodeInitial()) {
     on<EnterCodeLoadRequested>(_onLoadRequested);
     on<EnterCodeJoinRequested>(_onJoinRequested);
@@ -76,6 +81,7 @@ class EnterCodeBloc extends Bloc<EnterCodeEvent, EnterCodeState> {
 
   final GetEnterCodeUserUsecase _getUser;
   final JoinRoomUsecase _joinRoom;
+  final EnsureRoomChannelConnectedUsecase _ensureChannelConnected;
 
   EnterCodeUser? _cachedUser;
 
@@ -111,12 +117,21 @@ class EnterCodeBloc extends Bloc<EnterCodeEvent, EnterCodeState> {
     emit(EnterCodeJoining(user));
 
     try {
-      final room = await _joinRoom.execute(
+      final result = await _joinRoom.execute(
         roomCode: event.roomCode,
         expectedGameId: event.expectedGameId,
       );
-      debugPrint('[NAVIGATION] Join success → waiting room (${room.roomCode})');
-      emit(EnterCodeJoinSuccess(room));
+
+      if (result.destination == RoomEntryDestination.gameBoard) {
+        debugPrint('[RECONNECT] Room status=in_progress');
+        await _ensureChannelConnected.execute(result.room.roomCode);
+      }
+
+      debugPrint(
+        '[NAVIGATION] Join success → ${result.destination} '
+        '(${result.room.roomCode}) reconnect=${result.isReconnect}',
+      );
+      emit(EnterCodeJoinSuccess(result));
     } on NotAuthenticatedException {
       emit(const EnterCodeError('Debes iniciar sesión para unirte a una sala.'));
     } on RoomNotFoundException catch (e) {
@@ -125,7 +140,15 @@ class EnterCodeBloc extends Bloc<EnterCodeEvent, EnterCodeState> {
       emit(EnterCodeError(e.toString()));
     } on RoomGameMismatchException catch (e) {
       emit(EnterCodeError(e.toString()));
+    } on RoomFinishedException catch (e) {
+      emit(EnterCodeError(e.toString()));
     } on RoomRepositoryException catch (e) {
+      emit(EnterCodeError(e.toString()));
+    } on GameEventNotConnectedException {
+      emit(const EnterCodeError(
+        'No pudimos conectar al canal en tiempo real. Intenta de nuevo.',
+      ));
+    } on GameEventRepositoryException catch (e) {
       emit(EnterCodeError(e.toString()));
     } catch (e) {
       debugPrint('[ROOM] Join failed: $e');

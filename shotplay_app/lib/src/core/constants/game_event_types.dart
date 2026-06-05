@@ -9,6 +9,12 @@ class GameEventTypes {
   static const String lobbySync = 'lobby.sync';
   /// Avisa que el admin cerró la sala, forzando la salida.
   static const String lobbyClosed = 'lobby.closed';
+
+  /// Un jugador perdió conexión temporalmente.
+  static const String playerDisconnected = 'lobby.player_disconnected';
+
+  /// Un jugador volvió a conectarse.
+  static const String playerReconnected = 'lobby.player_reconnected';
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';

@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/routing/app_routes.dart';
 import '../../../domain/entities/game_option.dart';
+import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
+import '../../session/domain/usecases/ensure_room_channel_connected_usecase.dart';
+import '../../waiting_room/domain/usecases/connect_room_game_events_usecase.dart';
 import '../../enter_code/data/repository/enter_code_repository_impl.dart';
 import '../../enter_code/domain/usecases/get_enter_code_user_usecase.dart';
 import '../../enter_code/domain/usecases/join_room_usecase.dart';
@@ -36,16 +39,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => BlocProvider(
+      builder: (sheetContext) {
+        final gameEvents = sheetContext.read<GameEventRepository>();
+        return BlocProvider(
         create: (_) => EnterCodeBloc(
           getUser: GetEnterCodeUserUsecase(EnterCodeRepositoryImpl()),
           joinRoom: JoinRoomUsecase(sheetContext.read<RoomRepository>()),
+          ensureChannelConnected: EnsureRoomChannelConnectedUsecase(
+            ConnectRoomGameEventsUsecase(gameEvents),
+            gameEvents,
+          ),
         ),
         child: EnterCodeScreen(
           gameName: _selectedGame.title,
           expectedGameId: _selectedGame.gameDbId,
         ),
-      ),
+      );
+      },
     );
   }
 

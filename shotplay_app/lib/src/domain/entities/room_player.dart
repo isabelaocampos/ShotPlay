@@ -1,3 +1,5 @@
+import '../constants/participation_statuses.dart';
+
 class RoomPlayer {
   const RoomPlayer({
     required this.id,
@@ -7,6 +9,7 @@ class RoomPlayer {
     required this.isHost,
     required this.isReady,
     this.avatarUrl,
+    this.participationStatus = ParticipationStatuses.active,
   });
 
   final String id;
@@ -16,9 +19,16 @@ class RoomPlayer {
   final bool isHost;
   final bool isReady;
   final String? avatarUrl;
+  final String participationStatus;
+
+  bool get isConnected =>
+      ParticipationStatuses.isConnected(participationStatus);
 
   String get statusLabel {
     if (isHost) return 'Anfitrión';
+    if (participationStatus == ParticipationStatuses.disconnected) {
+      return 'Desconectado';
+    }
     if (isReady) return 'Listo para jugar';
     return 'Conectado';
   }

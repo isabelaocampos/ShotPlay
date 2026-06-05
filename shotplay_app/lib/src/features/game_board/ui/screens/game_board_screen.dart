@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/entities/room_session.dart';
+import '../../../../core/session/room_session_lifecycle_scope.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
+import '../../../../domain/repositories/game_session_repository.dart';
 import '../../../../domain/repositories/room_repository.dart';
 import '../../../../core/routing/app_routes.dart';
+import '../../../session/domain/usecases/save_game_state_usecase.dart';
+import '../../../session/domain/usecases/update_room_status_usecase.dart';
+import '../../../waiting_room/domain/usecases/fetch_room_players_usecase.dart';
 import '../../../../core/utils/supabase_safe.dart';
 import '../../domain/entities/board_entities.dart';
 import '../../domain/entities/challenge_card.dart';
@@ -35,29 +41,49 @@ class GameBoardScreen extends StatelessWidget {
     required this.room,
     required this.players,
     required this.isAdmin,
+    this.isReconnect = false,
+    this.persistedGameState,
   });
 
   final RoomSession room;
   final List<RoomPlayer> players;
   final bool isAdmin;
+  final bool isReconnect;
+  final Map<String, dynamic>? persistedGameState;
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = safeCurrentUserId() ?? '';
 
     return ChangeNotifierProvider<GameBoardController>(
-      create:
-          (ctx) => GameBoardController(
-            gameEvents: ctx.read<GameEventRepository>(),
-            currentUserId: currentUserId,
-            isAdmin: isAdmin,
-            players: players,
+      create: (ctx) {
+        final roomRepo = ctx.read<RoomRepository>();
+        final gameEvents = ctx.read<GameEventRepository>();
+        return GameBoardController(
+          gameEvents: gameEvents,
+          currentUserId: currentUserId,
+          isAdmin: isAdmin,
+          players: players,
+          roomId: room.idRoom,
+          roomCode: room.roomCode,
+          saveGameState: SaveGameStateUsecase(
+            ctx.read<GameSessionRepository>(),
           ),
-      child: _GameBoardView(
-        room: room,
-        isAdmin: isAdmin,
-        currentUserId: currentUserId,
-        players: players,
+          updateRoomStatus: UpdateRoomStatusUsecase(roomRepo),
+          fetchRoomPlayers: FetchRoomPlayersUsecase(roomRepo),
+        );
+      },
+      child: RoomSessionLifecycleScope(
+        roomId: room.idRoom,
+        roomCode: room.roomCode,
+        child: _GameBoardView(
+          room: room,
+          isAdmin: isAdmin,
+          currentUserId: currentUserId,
+          players: players,
+          isReconnect: isReconnect,
+          persistedGameState: persistedGameState,
+        ),
       ),
     );
   }
@@ -69,12 +95,16 @@ class _GameBoardView extends StatefulWidget {
     required this.isAdmin,
     required this.currentUserId,
     required this.players,
+    required this.isReconnect,
+    this.persistedGameState,
   });
 
   final RoomSession room;
   final bool isAdmin;
   final String currentUserId;
   final List<RoomPlayer> players;
+  final bool isReconnect;
+  final Map<String, dynamic>? persistedGameState;
 
   @override
   State<_GameBoardView> createState() => _GameBoardViewState();
@@ -90,15 +120,29 @@ class _GameBoardViewState extends State<_GameBoardView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       _controller = context.read<GameBoardController>();
       _controller?.addListener(_onControllerChange);
 
-      if (widget.isAdmin) {
-        _controller?.startGame();
-      } else {
-        _controller?.requestSync();
+      try {
+        await _controller?.startSession(
+          isReconnect: widget.isReconnect,
+          persistedGameState: widget.persistedGameState,
+        );
+        debugPrint('[NAVIGATION] Game board session ready');
+      } on GameEventNotConnectedException {
+        debugPrint('[RECONNECT] Game board started without pub/sub connection');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No pudimos conectar al canal en tiempo real.',
+              ),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
       }
     });
   }

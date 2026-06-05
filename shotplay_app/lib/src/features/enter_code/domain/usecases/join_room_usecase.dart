@@ -1,4 +1,4 @@
-import 'package:shotplay_app/src/domain/entities/room_session.dart';
+import 'package:shotplay_app/src/domain/entities/room_entry_result.dart';
 import 'package:shotplay_app/src/domain/repositories/room_repository.dart';
 
 class JoinRoomUsecase {
@@ -6,11 +6,11 @@ class JoinRoomUsecase {
 
   final RoomRepository _repository;
 
-  Future<RoomSession> execute({
+  Future<RoomEntryResult> execute({
     required String roomCode,
     int? expectedGameId,
   }) {
-    return _repository.joinRoom(
+    return _repository.enterRoom(
       roomCode: roomCode,
       expectedGameId: expectedGameId,
     );

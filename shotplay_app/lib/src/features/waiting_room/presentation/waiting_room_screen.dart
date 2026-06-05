@@ -7,6 +7,7 @@ import '../../../common_widgets/primary_button.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../core/ui/game_option_ui.dart';
 import '../../../domain/entities/game_option.dart';
+import '../../../domain/entities/room_lifecycle_status.dart';
 import '../../../domain/entities/room_player.dart';
 import '../../../domain/entities/room_session.dart';
 import '../../../domain/repositories/game_event_repository.dart';
@@ -20,6 +21,8 @@ import '../domain/usecases/watch_game_events_usecase.dart';
 import '../domain/usecases/leave_room_usecase.dart';
 import '../domain/usecases/close_room_usecase.dart';
 import '../domain/usecases/emit_room_closed_usecase.dart';
+import '../../session/domain/usecases/update_room_status_usecase.dart';
+import '../../../core/session/room_session_lifecycle_scope.dart';
 import 'waiting_room_controller.dart';
 
 class WaitingRoomScreen extends StatelessWidget {
@@ -49,9 +52,18 @@ class WaitingRoomScreen extends StatelessWidget {
           leaveRoom: LeaveRoomUsecase(roomRepo),
           closeRoom: CloseRoomUsecase(roomRepo),
           emitRoomClosed: EmitRoomClosedUsecase(gameEvents),
-        )..start(room.roomCode);
+          updateRoomStatus: UpdateRoomStatusUsecase(roomRepo),
+        )..start(
+            roomCode: room.roomCode,
+            roomId: room.idRoom,
+            roomStatus: room.status,
+          );
       },
-      child: _WaitingRoomView(room: room, isAdmin: isAdmin),
+      child: RoomSessionLifecycleScope(
+        roomId: room.idRoom,
+        roomCode: room.roomCode,
+        child: _WaitingRoomView(room: room, isAdmin: isAdmin),
+      ),
     );
   }
 }

@@ -9,10 +9,14 @@ import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_r
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/start_game_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/watch_game_board_events_usecase.dart';
+import 'package:shotplay_app/src/features/session/domain/usecases/save_game_state_usecase.dart';
+import 'package:shotplay_app/src/features/waiting_room/domain/usecases/fetch_room_players_usecase.dart';
 
 import '../../../../core/constants/game_event_types.dart';
+import '../../../../domain/entities/room_lifecycle_status.dart';
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
+import 'package:shotplay_app/src/features/session/domain/usecases/update_room_status_usecase.dart';
 
 enum GameBoardStatus { waiting, playing, finished }
 
@@ -22,23 +26,38 @@ class GameBoardController extends ChangeNotifier {
     required this.currentUserId,
     required this.isAdmin,
     required List<RoomPlayer> players,
-  }) : _gameEvents = gameEvents,
-       _startGame = StartGameUsecase(gameEvents),
-       _rollDice = RollDiceUsecase(),
-       _emitEvent = EmitDiceRollEventUsecase(gameEvents),
-       _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
-       _players = players {
-    _eventsSubscription = _watchEvents.execute().listen(_onEvent);
-  }
+    required this.roomId,
+    required this.roomCode,
+    required SaveGameStateUsecase saveGameState,
+    required UpdateRoomStatusUsecase updateRoomStatus,
+    required FetchRoomPlayersUsecase fetchRoomPlayers,
+  })  : _gameEvents = gameEvents,
+        _startGame = StartGameUsecase(gameEvents),
+        _rollDice = RollDiceUsecase(),
+        _emitEvent = EmitDiceRollEventUsecase(gameEvents),
+        _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
+        _saveGameState = saveGameState,
+        _updateRoomStatus = updateRoomStatus,
+        _fetchRoomPlayers = fetchRoomPlayers,
+        _players = players;
+
+  bool _sessionStarted = false;
 
   final GameEventRepository _gameEvents;
   final StartGameUsecase _startGame;
   final RollDiceUsecase _rollDice;
   final EmitDiceRollEventUsecase _emitEvent;
   final WatchGameBoardEventsUsecase _watchEvents;
+  final SaveGameStateUsecase _saveGameState;
+  final UpdateRoomStatusUsecase _updateRoomStatus;
+  final FetchRoomPlayersUsecase _fetchRoomPlayers;
   final List<RoomPlayer> _players;
 
+  final int roomId;
+  final String roomCode;
+
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
+  Set<String> _disconnectedPlayerIds = <String>{};
 
   final String currentUserId;
   final bool isAdmin;
@@ -75,6 +94,7 @@ class GameBoardController extends ChangeNotifier {
   bool get isMyTurn =>
       _gameState != null &&
       _gameState!.currentTurnPlayerId == currentUserId &&
+      !_disconnectedPlayerIds.contains(currentUserId) &&
       _status == GameBoardStatus.playing &&
       !_isRolling &&
       _pendingChallenge == null;
@@ -106,15 +126,83 @@ class GameBoardController extends ChangeNotifier {
 
   // ── Public actions ──────────────────────────────────────────────
 
+  /// Attaches realtime listeners only after [GameEventRepository.connect].
+  Future<void> startSession({
+    bool isReconnect = false,
+    Map<String, dynamic>? persistedGameState,
+  }) async {
+    if (_sessionStarted) {
+      debugPrint('[PUBSUB] Game session already started — skipping');
+      return;
+    }
+
+    if (!_gameEvents.isConnected) {
+      debugPrint(
+        '[PUBSUB] Cannot start session — repository not connected '
+        '(room=$roomCode)',
+      );
+      throw GameEventNotConnectedException();
+    }
+
+    _sessionStarted = true;
+    debugPrint(
+      '[PUBSUB] Attaching listeners on channel '
+      '${_gameEvents.connectedRoomCode}',
+    );
+
+    await _eventsSubscription?.cancel();
+    _eventsSubscription = _watchEvents.execute().listen(
+      _onEvent,
+      onError: (Object error) {
+        debugPrint('[PUBSUB] Game listener error: $error');
+      },
+    );
+
+    await _refreshDisconnectedPlayers();
+
+    if (isReconnect) {
+      debugPrint('[GAME_STATE] Restoring persisted state');
+      restoreFromPersisted(persistedGameState);
+      await requestSync();
+      debugPrint('[GAME_STATE] Sync requested — awaiting server state');
+      return;
+    }
+
+    if (isAdmin) {
+      await startGame();
+    } else {
+      await requestSync();
+    }
+  }
+
   Future<void> startGame() async {
     if (!isAdmin) return;
     try {
       final state = await _startGame.execute(_players);
       _gameState = state;
       _status = GameBoardStatus.playing;
+      await _updateRoomStatus.execute(roomId, RoomLifecycleStatus.inProgress);
+      await _persistState(state);
       notifyListeners();
+      debugPrint('[GAME_STATE] Game started and persisted');
     } catch (e) {
       debugPrint('[BOARD] startGame error: $e');
+    }
+  }
+
+  void restoreFromPersisted(Map<String, dynamic>? snapshot) {
+    if (snapshot == null || snapshot.isEmpty) return;
+    try {
+      final state = GameState.fromJson(snapshot);
+      _gameState = state;
+      _status = GameBoardStatus.playing;
+      if (state.positions.any((p) => p.square >= 49)) {
+        _status = GameBoardStatus.finished;
+      }
+      notifyListeners();
+      debugPrint('[GAME_STATE] Restored persisted game state');
+    } catch (e) {
+      debugPrint('[RECONNECT] Failed to restore persisted state: $e');
     }
   }
 
@@ -623,10 +711,12 @@ class GameBoardController extends ChangeNotifier {
     final shotsCount = shotsDelta > 0
         ? _gameState!.shotsTakenByCurrentPlayer + shotsDelta
         : _gameState!.shotsTakenByCurrentPlayer;
+    await _refreshDisconnectedPlayers();
     var newState = _gameState!.applyFinalMove(
       finalSquare,
       diceValue,
       shotsTakenByCurrentPlayer: shotsCount,
+      skipPlayerIds: _disconnectedPlayerIds,
     );
     if (mutateState != null) {
       newState = mutateState(newState);
@@ -635,6 +725,7 @@ class GameBoardController extends ChangeNotifier {
       newState = newState.copyWith(lastEventLog: eventLog);
     }
     await _emitEvent.execute(newState);
+    await _persistState(newState);
 
     final winner = newState.positions.where((p) => p.square >= 49).firstOrNull;
     if (winner != null) {
@@ -653,8 +744,56 @@ class GameBoardController extends ChangeNotifier {
 
   // ── Event listener ───────────────────────────────────────────────
 
+  Future<void> _refreshDisconnectedPlayers() async {
+    try {
+      final players = await _fetchRoomPlayers.execute(roomCode);
+      _disconnectedPlayerIds = players
+          .where((player) => !player.isConnected)
+          .map((player) => player.userId)
+          .toSet();
+      debugPrint(
+        '[RECONNECT] Disconnected players: ${_disconnectedPlayerIds.length}',
+      );
+
+      if (isAdmin &&
+          _gameState != null &&
+          _disconnectedPlayerIds.contains(_gameState!.currentTurnPlayerId)) {
+        debugPrint('[RECONNECT] Skipping turn for disconnected player');
+        final current = _gameState!.positions.firstWhere(
+          (p) => p.playerId == _gameState!.currentTurnPlayerId,
+        );
+        final skipped = _gameState!.applyFinalMove(
+          current.square,
+          0,
+          skipPlayerIds: _disconnectedPlayerIds,
+        );
+        _gameState = skipped;
+        await _emitEvent.execute(skipped);
+        await _persistState(skipped);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[RECONNECT] Failed to refresh disconnected players: $e');
+    }
+  }
+
+  Future<void> _persistState(GameState state) async {
+    final payload = <String, dynamic>{
+      'appEventType': GameBoardEventTypes.gameStart,
+      ...state.toJson(),
+    };
+    await _saveGameState.execute(roomId, payload);
+  }
+
   void _onEvent(Map<String, dynamic> event) {
     final type = event['appEventType'] as String?;
+
+    if (type == GameEventTypes.playerDisconnected ||
+        type == GameEventTypes.playerReconnected ||
+        type == GameEventTypes.lobbySync) {
+      unawaited(_refreshDisconnectedPlayers());
+      return;
+    }
 
     if (type == GameBoardEventTypes.gameStart) {
       try {
@@ -665,7 +804,9 @@ class GameBoardController extends ChangeNotifier {
           _status = GameBoardStatus.finished;
         }
         _isRolling = false;
+        unawaited(_persistState(state));
         notifyListeners();
+        debugPrint('[GAME_STATE] Synced from server');
       } catch (e) {
         debugPrint('[BOARD] failed to parse gameStart event: $e');
       }

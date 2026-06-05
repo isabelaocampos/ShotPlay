@@ -3,12 +3,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/room_code_constants.dart';
+import '../../domain/constants/participation_statuses.dart';
+import '../../domain/entities/room_entry_destination.dart';
+import '../../domain/entities/room_entry_result.dart';
+import '../../domain/entities/room_lifecycle_status.dart';
 import '../../domain/entities/room_player.dart';
 import '../../domain/entities/room_session.dart';
+import '../../domain/repositories/game_session_repository.dart';
 import '../../domain/repositories/room_repository.dart';
 
 class LocalRoomRepository implements RoomRepository {
-  const LocalRoomRepository();
+  LocalRoomRepository(this._gameSession);
+
+  final GameSessionRepository _gameSession;
 
   static int _nextRoomId = 1;
   static final Map<String, RoomSession> _rooms = <String, RoomSession>{};
@@ -16,6 +23,8 @@ class LocalRoomRepository implements RoomRepository {
       <String, List<RoomPlayer>>{};
   static final Map<String, StreamController<List<RoomPlayer>>> _controllers =
       <String, StreamController<List<RoomPlayer>>>{};
+  static final Map<int, RoomLifecycleStatus> _roomStatuses =
+      <int, RoomLifecycleStatus>{};
 
   @override
   Future<RoomSession> createRoom({
@@ -31,19 +40,22 @@ class LocalRoomRepository implements RoomRepository {
       throw RoomCodeCollisionException();
     }
 
-    final localAdminId = 'local-admin-$normalizedCode';
+    const localAdminId = 'local-admin';
+    final idRoom = _nextRoomId++;
 
     final room = RoomSession(
-      idRoom: _nextRoomId++,
+      idRoom: idRoom,
       roomCode: normalizedCode,
       adminId: localAdminId,
       gameId: gameId,
       maxPlayers: maxPlayers,
       roomName: roomName,
       isPrivate: isPrivate,
+      status: RoomLifecycleStatus.waiting,
     );
 
     _rooms[normalizedCode] = room;
+    _roomStatuses[idRoom] = RoomLifecycleStatus.waiting;
     _players[normalizedCode] = <RoomPlayer>[
       RoomPlayer(
         id: '$normalizedCode-host',
@@ -52,7 +64,6 @@ class LocalRoomRepository implements RoomRepository {
         username: 'Anfitrión',
         isHost: true,
         isReady: true,
-        avatarUrl: null,
       ),
     ];
     _emit(normalizedCode);
@@ -62,7 +73,7 @@ class LocalRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<RoomSession> joinRoom({
+  Future<RoomEntryResult> enterRoom({
     required String roomCode,
     int? expectedGameId,
   }) async {
@@ -73,7 +84,6 @@ class LocalRoomRepository implements RoomRepository {
 
     final room = _rooms[normalizedCode];
     if (room == null) {
-      debugPrint('[ROOM] Room not found (local): $normalizedCode');
       throw RoomNotFoundException();
     }
 
@@ -81,46 +91,78 @@ class LocalRoomRepository implements RoomRepository {
       throw RoomGameMismatchException();
     }
 
-    final players = _players.putIfAbsent(normalizedCode, () => <RoomPlayer>[]);
+    final status = _roomStatuses[room.idRoom] ?? RoomLifecycleStatus.waiting;
+    if (status == RoomLifecycleStatus.finished) {
+      throw RoomFinishedException();
+    }
+
     const joinerId = 'local-guest';
-    final alreadyJoined =
-        players.any((player) => player.userId == joinerId);
+    final players = _players.putIfAbsent(normalizedCode, () => <RoomPlayer>[]);
+    var isReconnect = false;
 
-    if (alreadyJoined) {
-      debugPrint('[ROOM] User already in room (local): $normalizedCode');
-      return room;
-    }
+    final existingIndex =
+        players.indexWhere((player) => player.userId == joinerId);
 
-    if (players.length >= room.maxPlayers) {
-      debugPrint('[ROOM] Room full (local): $normalizedCode');
-      throw RoomFullException();
-    }
-
-    players.add(
-      RoomPlayer(
-        id: '$normalizedCode-$joinerId',
-        roomCode: normalizedCode,
-        userId: joinerId,
-        username: 'Invitado',
-        isHost: false,
+    if (existingIndex >= 0) {
+      isReconnect = true;
+      final existing = players[existingIndex];
+      players[existingIndex] = RoomPlayer(
+        id: existing.id,
+        roomCode: existing.roomCode,
+        userId: existing.userId,
+        username: existing.username,
+        isHost: existing.isHost,
         isReady: true,
-        avatarUrl: null,
-      ),
-    );
+        participationStatus: ParticipationStatuses.active,
+      );
+    } else {
+      if (players.length >= room.maxPlayers) {
+        throw RoomFullException();
+      }
+      players.add(
+        RoomPlayer(
+          id: '$normalizedCode-$joinerId',
+          roomCode: normalizedCode,
+          userId: joinerId,
+          username: 'Invitado',
+          isHost: false,
+          isReady: true,
+        ),
+      );
+    }
+
     _emit(normalizedCode);
 
-    debugPrint('[ROOM] Joined room successfully (local): $normalizedCode');
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return room;
+    final session = RoomSession(
+      idRoom: room.idRoom,
+      roomCode: room.roomCode,
+      adminId: room.adminId,
+      gameId: room.gameId,
+      maxPlayers: room.maxPlayers,
+      roomName: room.roomName,
+      isPrivate: room.isPrivate,
+      status: status,
+    );
+
+    final persisted = status == RoomLifecycleStatus.inProgress
+        ? await _gameSession.fetchState(room.idRoom)
+        : null;
+
+    return RoomEntryResult(
+      room: session,
+      destination: status == RoomLifecycleStatus.inProgress
+          ? RoomEntryDestination.gameBoard
+          : RoomEntryDestination.waitingRoom,
+      players: List<RoomPlayer>.unmodifiable(players),
+      isReconnect: isReconnect,
+      persistedGameState: persisted,
+    );
   }
 
   @override
   Future<List<RoomPlayer>> fetchRoomPlayers(String roomCode) async {
     final normalizedCode = RoomCodeConstants.normalize(roomCode);
     final players = _players[normalizedCode] ?? const <RoomPlayer>[];
-    debugPrint(
-      '[PARTICIPANTS] Fetched ${players.length} player(s) (local) for $normalizedCode',
-    );
     return List<RoomPlayer>.unmodifiable(players);
   }
 
@@ -145,39 +187,92 @@ class LocalRoomRepository implements RoomRepository {
 
   @override
   Future<void> leaveRoom(int roomId) async {
-    final entry = _rooms.entries.where((e) => e.value.idRoom == roomId).firstOrNull;
-    if (entry == null) return;
-    
-    final normalizedCode = entry.key;
-    final players = _players[normalizedCode] ?? [];
-    
-    // Simulate current user leaving (removing the guest)
-    players.removeWhere((p) => p.userId == 'local-guest');
-    _emit(normalizedCode);
+    for (final entry in _players.entries) {
+      final room = _rooms[entry.key];
+      if (room?.idRoom != roomId) continue;
+
+      entry.value.removeWhere((p) => p.userId == 'local-guest');
+      _emit(entry.key);
+      return;
+    }
   }
 
   @override
   Future<void> closeRoom(int roomId) async {
-    final entry = _rooms.entries.where((e) => e.value.idRoom == roomId).firstOrNull;
+    final entry =
+        _rooms.entries.where((e) => e.value.idRoom == roomId).firstOrNull;
     if (entry == null) return;
-    
+
     final normalizedCode = entry.key;
     _rooms.remove(normalizedCode);
     _players.remove(normalizedCode);
-    _controllers[normalizedCode]?.close();
+    _roomStatuses.remove(roomId);
+    await _controllers[normalizedCode]?.close();
     _controllers.remove(normalizedCode);
+  }
+
+  @override
+  Future<void> updateRoomStatus(int roomId, RoomLifecycleStatus status) async {
+    _roomStatuses[roomId] = status;
+    for (final entry in _rooms.entries) {
+      if (entry.value.idRoom == roomId) {
+        _rooms[entry.key] = RoomSession(
+          idRoom: entry.value.idRoom,
+          roomCode: entry.value.roomCode,
+          adminId: entry.value.adminId,
+          gameId: entry.value.gameId,
+          maxPlayers: entry.value.maxPlayers,
+          roomName: entry.value.roomName,
+          isPrivate: entry.value.isPrivate,
+          status: status,
+        );
+        break;
+      }
+    }
+    debugPrint('[ROOM] Status updated (local) to ${status.toDb()}');
+  }
+
+  @override
+  Future<void> markParticipationActive(int roomId) async {
+    _updateGuestStatus(roomId, ParticipationStatuses.active);
+  }
+
+  @override
+  Future<void> markParticipationDisconnected(int roomId) async {
+    _updateGuestStatus(roomId, ParticipationStatuses.disconnected);
+  }
+
+  void _updateGuestStatus(int roomId, String status) {
+    for (final entry in _players.entries) {
+      final room = _rooms[entry.key];
+      if (room?.idRoom != roomId) continue;
+
+      final index = entry.value.indexWhere((p) => p.userId == 'local-guest');
+      if (index < 0) return;
+
+      final player = entry.value[index];
+      entry.value[index] = RoomPlayer(
+        id: player.id,
+        roomCode: player.roomCode,
+        userId: player.userId,
+        username: player.username,
+        isHost: player.isHost,
+        isReady: status == ParticipationStatuses.active,
+        participationStatus: status,
+      );
+      _emit(entry.key);
+      return;
+    }
   }
 
   void _emit(String roomCode) {
     final normalizedCode = RoomCodeConstants.normalize(roomCode);
     final controller = _controllers[normalizedCode];
     if (controller == null || controller.isClosed) return;
-    final snapshot = List<RoomPlayer>.unmodifiable(
-      _players[normalizedCode] ?? const <RoomPlayer>[],
+    controller.add(
+      List<RoomPlayer>.unmodifiable(
+        _players[normalizedCode] ?? const <RoomPlayer>[],
+      ),
     );
-    debugPrint(
-      '[PARTICIPANTS] Local stream emit: ${snapshot.length} player(s)',
-    );
-    controller.add(snapshot);
   }
 }
