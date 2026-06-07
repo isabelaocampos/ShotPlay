@@ -20,8 +20,8 @@ class BoardStatusBar extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _StatusChip(label: 'TURN', value: currentTurnUsername),
-        _StatusChip(label: 'POSITION', value: myPosition != null ? '${myPosition!.square}/49' : '–'),
+        _StatusChip(label: 'TURNO', value: currentTurnUsername),
+        _StatusChip(label: 'POSICIÓN', value: myPosition != null ? '${myPosition!.square}/49' : '–'),
         _StatusChip(label: 'SHOTS', value: '${gameState.shotsTakenByCurrentPlayer} shots'),
       ],
     );

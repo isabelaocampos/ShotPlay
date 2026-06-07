@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../../../core/theme/app_colors.dart';
 
 class SnakePainter extends CustomPainter {
   const SnakePainter({
-    this.bodyColor = const Color(0xFFA020F0),
-    this.glowColor = const Color(0xFFFF69B4),
-    this.spotColor = const Color(0xFFFF69B4),
+    this.bodyColor = AppColors.snakeBody,
+    this.glowColor = AppColors.snakeGlow,
+    this.spotColor = AppColors.snakeGlow,
     this.bodyWidth = 6.0,
   });
 
@@ -89,7 +90,7 @@ class SnakePainter extends CustomPainter {
 
     // 6. Tongue: V-shape extending past the head tip
     final tonguePaint = Paint()
-      ..color = const Color(0xFFFF3333)
+      ..color = AppColors.error
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

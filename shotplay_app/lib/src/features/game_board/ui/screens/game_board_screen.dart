@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../domain/entities/room_player.dart';
 import '../../../../domain/entities/room_session.dart';
@@ -544,7 +543,7 @@ class _TopBar extends StatelessWidget {
                       fontSize: 10,
                       fontWeight: FontWeight.w400,
                     ),
-                  ),
+                 ),
                   Text(
                     roomCode,
                     style: const TextStyle(

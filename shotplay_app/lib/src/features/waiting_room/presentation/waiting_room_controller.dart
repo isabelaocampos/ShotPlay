@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/constants/game_event_types.dart';
 import '../../../domain/entities/room_player.dart';
-import '../../../domain/repositories/game_event_repository.dart';
 import '../../../domain/repositories/room_repository.dart';
 import '../domain/lobby_event_types.dart';
 import '../domain/usecases/connect_room_game_events_usecase.dart';

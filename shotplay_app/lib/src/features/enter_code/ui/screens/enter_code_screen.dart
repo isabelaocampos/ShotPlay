@@ -7,7 +7,6 @@ import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/core/utils/upper_case_text_formatter.dart';
 import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Bottom-sheet modal that lets a user enter a 6-character room code.
 class EnterCodeScreen extends StatefulWidget {

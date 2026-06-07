@@ -52,7 +52,7 @@ class RollDiceButton extends StatelessWidget {
                   ),
                 )
               : Text(
-                  isMyTurn ? 'ROLL THE DICE' : 'WAITING FOR TURN',
+                  isMyTurn ? 'LANZAR DADO' : 'ESPERANDO TURNO',
                   style: TextStyle(
                     color: enabled ? Colors.white : const Color(0xFF94A3B8),
                     fontSize: 16,
