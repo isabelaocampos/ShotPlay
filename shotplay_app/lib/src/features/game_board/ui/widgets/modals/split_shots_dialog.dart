@@ -46,13 +46,13 @@ class _SplitShotsDialogState extends State<SplitShotsDialog> {
     final canConfirm = _distributed == _totalShots;
 
     return GenericChallengeDialog(
-      title: 'Split 4 shots',
-      message: 'Distribute the 4 shots among the table.',
+      title: 'Repartir 4 shots',
+      message: 'Distribuye los 4 shots entre la mesa.',
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFFFFBDF5),
-      primaryLabel: 'Lock split',
+      primaryLabel: 'Confirmar',
       onPrimary: canConfirm ? () => widget.onConfirm(Map<String, int>.from(_allocation)) : () {},
-      secondaryLabel: 'Cancel',
+      secondaryLabel: 'Cancelar',
       onSecondary: () => Navigator.of(context).pop(),
       body: Column(
         children: [

@@ -44,9 +44,9 @@ class _MostLikelyToDialogState extends State<MostLikelyToDialog> {
       message: widget.card.prompt,
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFF07FCFE),
-      primaryLabel: 'Pick',
+      primaryLabel: 'Elegir',
       onPrimary: selected == null ? () {} : () => widget.onConfirm(selected),
-      secondaryLabel: 'Cancel',
+      secondaryLabel: 'Cancelar',
       onSecondary: () => Navigator.of(context).pop(),
       body: Column(
         children: [

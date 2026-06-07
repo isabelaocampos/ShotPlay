@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:shotplay_app/src/domain/entities/room_player.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'core/navigation/main_screen.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';

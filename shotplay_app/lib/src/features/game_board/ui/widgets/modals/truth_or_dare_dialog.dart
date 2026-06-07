@@ -18,13 +18,13 @@ class TruthOrDareDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GenericChallengeDialog(
-      title: 'Truth or Dare',
-      message: 'Pick your poison and keep the round alive.',
+      title: 'Verdad o Reto',
+      message: 'Elige tu veneno y mantén viva la ronda.',
       iconAsset: 'assets/images/headliner_escalera.png',
       accentColor: const Color(0xFFFFBDF5),
-      primaryLabel: 'Dare',
+      primaryLabel: 'Reto',
       onPrimary: onDare,
-      secondaryLabel: 'Truth',
+      secondaryLabel: 'Verdad',
       onSecondary: onTruth,
       body: Container(
         width: double.infinity,
@@ -35,7 +35,7 @@ class TruthOrDareDialog extends StatelessWidget {
           border: Border.all(color: const Color(0xFFFFBDF5).withValues(alpha: 0.24)),
         ),
         child: Text(
-          'Square ${cell.square}',
+          'Casilla ${cell.square}',
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFFF8FAFC),

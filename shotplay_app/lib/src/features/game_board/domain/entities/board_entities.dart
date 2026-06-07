@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../enums/special_cell_type.dart';
 export '../enums/special_cell_type.dart';
 
-import 'challenge_card.dart';
 export 'trap_state.dart';
 import 'trap_state.dart';
 

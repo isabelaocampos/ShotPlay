@@ -15,11 +15,12 @@ class RevengeShotDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GenericChallengeDialog(
-      title: 'REVENGE SHOT',
-      message: 'The last player who punished you must drink with you.\n\n$punisherName drinks too.',
+      title: 'SHOT DE VENGANZA',
+      message:
+          'El ultimo jugador que te castigo debe tomar contigo.\n\n$punisherName toma tambien.',
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFFFF339A),
-      primaryLabel: 'Revenge',
+      primaryLabel: 'Venganza',
       onPrimary: onConfirm,
     );
   }

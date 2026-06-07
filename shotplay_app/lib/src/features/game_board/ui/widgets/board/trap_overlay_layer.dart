@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/entities/board_entities.dart';
 import 'board_layout.dart';
+import '../../../../../core/theme/app_colors.dart';
 
 class TrapOverlayLayer extends StatelessWidget {
   const TrapOverlayLayer({
@@ -34,17 +35,17 @@ class TrapOverlayLayer extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFFF97316).withValues(alpha: 0.30),
-                        const Color(0xFF0F121A).withValues(alpha: 0.92),
+                        AppColors.warning.withValues(alpha: 0.30),
+                        AppColors.background.withValues(alpha: 0.92),
                       ],
                     ),
                     border: Border.all(
-                      color: const Color(0xFFF97316).withValues(alpha: 0.60),
+                      color: AppColors.warning.withValues(alpha: 0.60),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFF97316).withValues(alpha: 0.25),
+                        color: AppColors.warning.withValues(alpha: 0.25),
                         blurRadius: 10,
                         spreadRadius: 0.6,
                       ),
@@ -53,7 +54,7 @@ class TrapOverlayLayer extends StatelessWidget {
                   child: const Icon(
                     Icons.warning_rounded,
                     size: 16,
-                    color: Color(0xFFF97316),
+                    color: AppColors.warning,
                   ),
                 ),
               ),

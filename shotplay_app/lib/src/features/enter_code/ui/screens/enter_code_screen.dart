@@ -9,7 +9,6 @@ import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/domain/entities/room_entry_destination.dart';
 import 'package:shotplay_app/src/core/utils/upper_case_text_formatter.dart';
 import 'package:shotplay_app/src/features/enter_code/ui/bloc/enter_code_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Bottom-sheet modal that lets a user enter a 6-character room code.
 class EnterCodeScreen extends StatefulWidget {
@@ -62,13 +61,49 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
     super.dispose();
   }
 
-  void _onKeyChanged(int index, String value) {
-    if (value.isNotEmpty && index < _codeLength - 1) {
+  /// Handles single-character input (typing) or multi-character input (paste).
+  ///
+  /// When the user pastes a full code, [value] will contain all characters;
+  /// they are distributed across the individual controllers and focus is moved
+  /// to the last filled slot (or the submit button equivalent).
+  void _onCodeInput(int index, String value) {
+    final cleaned = value
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toUpperCase();
+
+    if (cleaned.length > 1) {
+      // Distribute pasted code starting from position 0.
+      _distributeCode(cleaned);
+      return;
+    }
+
+    // Single character typed: keep exactly one char in this controller.
+    final single = cleaned.isNotEmpty ? cleaned[0] : '';
+    if (_controllers[index].text != single) {
+      _controllers[index].text = single;
+      _controllers[index].selection = TextSelection.fromPosition(
+        TextPosition(offset: single.length),
+      );
+    }
+
+    if (single.isNotEmpty && index < _codeLength - 1) {
       _focusNodes[index + 1].requestFocus();
     }
-    if (value.isEmpty && index > 0) {
+    if (single.isEmpty && index > 0) {
       _focusNodes[index - 1].requestFocus();
     }
+
+    setState(() {});
+  }
+
+  /// Fills all code slots with [code], starting from the first slot.
+  void _distributeCode(String code) {
+    for (int i = 0; i < _codeLength; i++) {
+      _controllers[i].text = i < code.length ? code[i] : '';
+    }
+    // Move focus to the last filled slot.
+    final lastIndex = (code.length - 1).clamp(0, _codeLength - 1);
+    _focusNodes[lastIndex].requestFocus();
     setState(() {});
   }
 
@@ -270,14 +305,15 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
           controller: _controllers[index],
           focusNode: _focusNodes[index],
           textAlign: TextAlign.center,
-          maxLength: 1,
+          // maxLength is intentionally omitted so that the OS does not
+          // truncate pasted text before onChanged receives it.
           textCapitalization: TextCapitalization.characters,
           keyboardType: TextInputType.text,
           enabled: !joining,
           inputFormatters: [
+            // Allow raw input; sanitisation is handled in _onCodeInput.
             FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
             UpperCaseTextFormatter(),
-            LengthLimitingTextInputFormatter(1),
           ],
           style: GoogleFonts.spaceGrotesk(
             color: hasValue ? const Color(0xFFA40EEA) : const Color(0xFF334155),
@@ -289,7 +325,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
             counterText: '',
             contentPadding: EdgeInsets.zero,
           ),
-          onChanged: (value) => _onKeyChanged(index, value),
+          onChanged: (value) => _onCodeInput(index, value),
         ),
       ),
     );
