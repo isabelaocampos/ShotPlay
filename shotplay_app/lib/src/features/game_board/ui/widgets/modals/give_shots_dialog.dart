@@ -37,13 +37,13 @@ class _GiveShotsDialogState extends State<GiveShotsDialog> {
     final selected = candidates.where((p) => p.userId == _selectedPlayerId).firstOrNull;
 
     return GenericChallengeDialog(
-      title: 'Give 2 shots',
-      message: 'Choose a player to drink 2 shots.',
+      title: 'Dar 2 shots',
+      message: 'Elige a un jugador para que tome 2 shots.',
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFF07FCFE),
-      primaryLabel: 'Confirm',
+      primaryLabel: 'Confirmar',
       onPrimary: selected == null ? () {} : () => widget.onConfirm(selected),
-      secondaryLabel: 'Cancel',
+      secondaryLabel: 'Cancelar',
       onSecondary: () => Navigator.of(context).pop(),
       body: Column(
         children: [

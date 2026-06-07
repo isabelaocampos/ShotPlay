@@ -10,23 +10,23 @@ class ChallengeCard {
   final String prompt;
 
   static const _neverHaveIEverPrompts = [
-    'Never have I ever lied to get out of class.',
-    'Never have I ever sent a text to the wrong person.',
-    'Never have I ever pretended to know a song just to fit in.',
-    'Never have I ever stalked an ex on social media.',
+    'Yo nunca le he mentido a alguien para salir de clase.',
+    'Yo nunca le he escrito un mensaje al contacto equivocado.',
+    'Yo nunca he fingido conocer una canción para encajar.',
+    'Yo nunca le he revisado el perfil a un ex en redes sociales.',
   ];
 
   static const _mostLikelyToPrompts = [
-    'Who is most likely to text their ex tonight?',
-    'Who is most likely to start a fight over a meme?',
-    'Who is most likely to forget their own birthday?',
-    'Who is most likely to dance before the chorus starts?',
+    'Quien es mas probable que le escriba a su ex esta noche?',
+    'Quien es mas probable que pelee por un meme?',
+    'Quien es mas probable que se olvide de su propio cumpleanos?',
+    'Quien es mas probable que baile antes de que llegue el coro?',
   ];
 
   static ChallengeCard randomNeverHaveIEver() {
     final index = Random().nextInt(_neverHaveIEverPrompts.length);
     return ChallengeCard(
-      title: 'Never have I ever...',
+      title: 'Yo nunca...',
       prompt: _neverHaveIEverPrompts[index],
     );
   }
@@ -34,7 +34,7 @@ class ChallengeCard {
   static ChallengeCard randomMostLikelyTo() {
     final index = Random().nextInt(_mostLikelyToPrompts.length);
     return ChallengeCard(
-      title: 'Who is most likely to...',
+      title: 'Quien es mas probable que...',
       prompt: _mostLikelyToPrompts[index],
     );
   }

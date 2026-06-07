@@ -13,8 +13,8 @@ class WaterfallDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GenericChallengeDialog(
-      title: 'WATERFALL',
-      message: 'Everyone drinks until you stop.',
+      title: 'CASCADA',
+      message: 'Todos toman hasta que tú pares.',
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFF07FCFE),
       primaryLabel: 'Activar',

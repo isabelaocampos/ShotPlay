@@ -22,9 +22,9 @@ class NeverHaveIEverDialog extends StatelessWidget {
       message: card.prompt,
       iconAsset: 'assets/images/7d8f23c2817a787a650c62a08cefcbf184f80f9c.png',
       accentColor: const Color(0xFFA50EEB),
-      primaryLabel: 'I have',
+      primaryLabel: 'Lo he hecho',
       onPrimary: onDrink,
-      secondaryLabel: 'I haven\'t',
+      secondaryLabel: 'No lo he hecho',
       onSecondary: onPass,
     );
   }
