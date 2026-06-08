@@ -18,6 +18,11 @@ class GameEventTypes {
 
   /// El admin distribuyó los roles del Modo Impostor.
   static const String impostorRolesAssigned = 'impostor.roles_assigned';
+  /// El jugador confirmó la pantalla de revelación.
+  static const String impostorRevealConfirmed = 'impostor.reveal_confirmed';
+
+  /// La fase de preguntas cambió y el temporizador se sincronizó.
+  static const String impostorQuestionPhaseUpdated = 'impostor.question_phase_updated';
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';

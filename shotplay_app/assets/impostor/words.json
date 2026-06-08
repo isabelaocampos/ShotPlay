@@ -5,14 +5,44 @@
       "words": [
         { "word": "León", "hint": "Un felino salvaje y majestuoso" },
         { "word": "Elefante", "hint": "Tiene una memoria increíble y colmillos" },
-        { "word": "Tiburón", "hint": "Depredador marino muy temido" }
+        { "word": "Tiburón", "hint": "Depredador marino muy temido" },
+        { "word": "Pingüino", "hint": "Ave que no vuela y vive en lugares fríos" }
       ]
     },
     {
       "name": "Objetos",
       "words": [
         { "word": "Cámara", "hint": "Sirve para capturar momentos" },
-        { "word": "Reloj", "hint": "Se usa para medir el paso del tiempo" }
+        { "word": "Reloj", "hint": "Se usa para medir el paso del tiempo" },
+        { "word": "Linterna", "hint": "Ilumina en la oscuridad" },
+        { "word": "Auriculares", "hint": "Te ayudan a escuchar sin molestar a otros" }
+      ]
+    },
+    {
+      "name": "Profesiones",
+      "words": [
+        { "word": "Médico", "hint": "Ayuda a cuidar la salud de las personas" },
+        { "word": "Maestro", "hint": "Enseña y acompaña en el aprendizaje" },
+        { "word": "Bombero", "hint": "Actúa en emergencias y fuego" },
+        { "word": "Arquitecto", "hint": "Diseña espacios y construcciones" }
+      ]
+    },
+    {
+      "name": "Tecnología",
+      "words": [
+        { "word": "Pantalla", "hint": "Muestra imágenes, textos y videos" },
+        { "word": "Teclado", "hint": "Se usa para escribir" },
+        { "word": "Servidor", "hint": "Responde a peticiones de otros sistemas" },
+        { "word": "Aplicación", "hint": "Programa pensado para una tarea concreta" }
+      ]
+    },
+    {
+      "name": "Comida",
+      "words": [
+        { "word": "Taco", "hint": "Una comida muy popular y fácil de compartir" },
+        { "word": "Pizza", "hint": "Tiene base redonda y se comparte en porciones" },
+        { "word": "Helado", "hint": "Se disfruta frío y con muchos sabores" },
+        { "word": "Sandía", "hint": "Fruta grande, fresca y muy jugosa" }
       ]
     }
   ]

@@ -7,6 +7,7 @@ class GameBoardEventTypes {
 
   static const String gameStart = GameEventTypes.gameStart;
   static const String diceRoll = GameEventTypes.diceRoll;
+  static const String phaseUpdated = GameEventTypes.impostorQuestionPhaseUpdated;
   static const String sync = GameEventTypes.gameSync;
   static const String gameVictory = GameEventTypes.gameVictory;
 }

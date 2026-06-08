@@ -89,8 +89,10 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
     controller.markAsNavigatingToBoard();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final isImpostorGame = gameOptionFromDbId(widget.room.gameId).id == 'impostor';
+
       Navigator.of(context).pushReplacementNamed(
-        AppRoutes.gameBoard,
+        isImpostorGame ? AppRoutes.impostorReveal : AppRoutes.gameBoard,
         arguments: {
           'room': widget.room,
           'players': controller.players,
@@ -189,15 +191,8 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
         ),
       ),
       bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: 1,
-        onHomeTap: () {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            AppRoutes.gameCatalog,
-            (route) => false,
-          );
-        },
+        currentIndex: 0,
         onGamesTap: () {},
-        onSocialTap: () {},
         onProfileTap: () {},
       ),
     );

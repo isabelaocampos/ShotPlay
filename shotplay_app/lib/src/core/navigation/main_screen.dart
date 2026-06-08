@@ -37,19 +37,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   late final List<Widget> _screens = [
-    const Center(
-      child: Text(
-        'Inicio',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    ),
     const GameCatalogScreen(),
-    const Center(
-      child: Text(
-        'Social',
-        style: TextStyle(color: Colors.white, fontSize: 24),
-      ),
-    ),
     BlocProvider(
       create: (ctx) => ProfileBloc(
         GetProfileUsecase(ctx.read<ProfileRepository>()),
@@ -59,9 +47,7 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   static const List<_NavItem> _navItems = [
-    _NavItem(icon: Icons.home_rounded, label: 'Inicio'),
     _NavItem(icon: Icons.sports_esports_rounded, label: 'Juegos'),
-    _NavItem(icon: Icons.people_alt_rounded, label: 'Social'),
     _NavItem(icon: Icons.person_rounded, label: 'Perfil'),
   ];
 

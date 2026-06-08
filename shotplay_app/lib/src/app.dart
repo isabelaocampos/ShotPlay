@@ -20,6 +20,7 @@ import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
 import 'features/game_catalog/presentation/game_catalog_controller.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
+import 'features/impostor/presentation/screens/impostor_reveal_screen.dart';
 import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
 import 'features/profile/data/repository/profile_repository_impl.dart';
@@ -109,6 +110,18 @@ class ShotPlayApp extends StatelessWidget {
                 settings: settings,
                 builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
               );
+                case AppRoutes.impostorReveal:
+                  final args = settings.arguments as Map<String, dynamic>;
+                  return MaterialPageRoute<void>(
+                    settings: settings,
+                    builder: (_) => ImpostorRevealScreen(
+                      room: args['room'] as RoomSession,
+                      players: (args['players'] as List<dynamic>).cast<RoomPlayer>(),
+                      isAdmin: args['isAdmin'] as bool,
+                      isReconnect: args['isReconnect'] as bool? ?? false,
+                      persistedGameState: args['persistedGameState'] as Map<String, dynamic>?,
+                    ),
+                  );
             case AppRoutes.gameBoard:
               final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute<void>(
@@ -121,6 +134,7 @@ class ShotPlayApp extends StatelessWidget {
                   isReconnect: args['isReconnect'] as bool? ?? false,
                   persistedGameState: args['persistedGameState']
                       as Map<String, dynamic>?,
+                  impostorInfo: args['impostorInfo'] as Map<String, dynamic>?,
                 ),
               );
             default:

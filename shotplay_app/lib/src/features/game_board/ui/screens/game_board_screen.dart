@@ -7,6 +7,7 @@ import '../../../../domain/entities/room_session.dart';
 import '../../../../core/session/room_session_lifecycle_scope.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
 import '../../../../domain/repositories/game_session_repository.dart';
+import '../../../../domain/entities/game_option.dart';
 import '../../../../domain/repositories/room_repository.dart';
 import '../../../../core/routing/app_routes.dart';
 import '../../../session/domain/usecases/save_game_state_usecase.dart';
@@ -20,6 +21,7 @@ import '../widgets/board/game_board_widget.dart';
 import '../widgets/hud/board_status_bar.dart';
 import '../widgets/hud/game_feed_section.dart';
 import '../widgets/hud/roll_dice_button.dart';
+import '../widgets/hud/question_phase_panel.dart';
 import '../widgets/modals/give_shots_dialog.dart';
 import '../widgets/modals/give_shot_dialog.dart';
 import '../widgets/modals/never_have_i_ever_dialog.dart';
@@ -42,6 +44,7 @@ class GameBoardScreen extends StatelessWidget {
     required this.isAdmin,
     this.isReconnect = false,
     this.persistedGameState,
+    this.impostorInfo,
   });
 
   final RoomSession room;
@@ -49,10 +52,12 @@ class GameBoardScreen extends StatelessWidget {
   final bool isAdmin;
   final bool isReconnect;
   final Map<String, dynamic>? persistedGameState;
+  final Map<String, dynamic>? impostorInfo;
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = safeCurrentUserId() ?? '';
+    final isImpostorGame = gameOptionFromDbId(room.gameId).id == 'impostor';
 
     return ChangeNotifierProvider<GameBoardController>(
       create: (ctx) {
@@ -62,6 +67,7 @@ class GameBoardScreen extends StatelessWidget {
           gameEvents: gameEvents,
           currentUserId: currentUserId,
           isAdmin: isAdmin,
+          isImpostorGame: isImpostorGame,
           players: players,
           roomId: room.idRoom,
           roomCode: room.roomCode,
@@ -82,6 +88,7 @@ class GameBoardScreen extends StatelessWidget {
           players: players,
           isReconnect: isReconnect,
           persistedGameState: persistedGameState,
+          impostorInfo: impostorInfo,
         ),
       ),
     );
@@ -96,6 +103,7 @@ class _GameBoardView extends StatefulWidget {
     required this.players,
     required this.isReconnect,
     this.persistedGameState,
+    this.impostorInfo,
   });
 
   final RoomSession room;
@@ -104,6 +112,7 @@ class _GameBoardView extends StatefulWidget {
   final List<RoomPlayer> players;
   final bool isReconnect;
   final Map<String, dynamic>? persistedGameState;
+  final Map<String, dynamic>? impostorInfo;
 
   @override
   State<_GameBoardView> createState() => _GameBoardViewState();
@@ -447,7 +456,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
                 onExitPressed: _confirmExit,
               ),
 
-              if (gameState != null)
+              if (!controller.isImpostorGame && gameState != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                   child: BoardStatusBar(
@@ -466,49 +475,60 @@ class _GameBoardViewState extends State<_GameBoardView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          AspectRatio(
-                            aspectRatio: 1,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    const Color(0xFF20142B).withValues(alpha: 0.96),
-                                    const Color(0xFF0F0A18).withValues(alpha: 0.96),
+                          if (controller.isImpostorGame && gameState != null) ...[
+                            QuestionPhasePanel(
+                              gameState: gameState,
+                            ),
+                            const SizedBox(height: 20),
+                            if (widget.impostorInfo != null)
+                              _ImpostorSecretCard(info: widget.impostorInfo!),
+                            const SizedBox(height: 20),
+                          ],
+
+                          if (!controller.isImpostorGame)
+                            AspectRatio(
+                              aspectRatio: 1,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF20142B).withValues(alpha: 0.96),
+                                      const Color(0xFF0F0A18).withValues(alpha: 0.96),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: const Color(0xFF07FCFE).withValues(alpha: 0.30),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF5F0F86).withValues(alpha: 0.22),
+                                      blurRadius: 24,
+                                      spreadRadius: 1,
+                                    ),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: const Color(0xFF07FCFE).withValues(alpha: 0.30),
-                                  width: 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF5F0F86).withValues(alpha: 0.22),
-                                    blurRadius: 24,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
+                                padding: const EdgeInsets.all(6),
+                                child:
+                                    gameState != null
+                                        ? GameBoardWidget(
+                                          positions: gameState.positions,
+                                      highlightSquare: controller.myPosition?.square,
+                                      activeTraps: gameState.activeTraps,
+                                      silentPlayerId: gameState.silentPlayerId.isEmpty
+                                        ? null
+                                        : gameState.silentPlayerId,
+                                        )
+                                        : const _LoadingBoard(),
                               ),
-                              padding: const EdgeInsets.all(6),
-                              child:
-                                  gameState != null
-                                      ? GameBoardWidget(
-                                        positions: gameState.positions,
-                                    highlightSquare: controller.myPosition?.square,
-                                    activeTraps: gameState.activeTraps,
-                                    silentPlayerId: gameState.silentPlayerId.isEmpty
-                                      ? null
-                                      : gameState.silentPlayerId,
-                                      )
-                                      : const _LoadingBoard(),
                             ),
-                          ),
 
                           const SizedBox(height: 20),
 
-                          if (gameState != null)
+                          if (!controller.isImpostorGame && gameState != null)
                             GameFeedSection(
                               gameState: gameState,
                               currentUserId: widget.currentUserId,
@@ -516,14 +536,15 @@ class _GameBoardViewState extends State<_GameBoardView> {
 
                           const SizedBox(height: 20),
 
-                          if (gameState != null)
-                            RollDiceButton(
-                              isMyTurn: controller.isMyTurn,
-                              isRolling: controller.isRolling,
-                              onRoll: controller.rollDice,
-                            )
-                          else
-                            const _LoadingButton(),
+                          if (!controller.isImpostorGame)
+                            if (gameState != null)
+                              RollDiceButton(
+                                isMyTurn: controller.isMyTurn,
+                                isRolling: controller.isRolling,
+                                onRoll: controller.rollDice,
+                              )
+                            else
+                              const _LoadingButton(),
                         ],
                       ),
                     ),
@@ -533,6 +554,69 @@ class _GameBoardViewState extends State<_GameBoardView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ImpostorSecretCard extends StatelessWidget {
+  const _ImpostorSecretCard({required this.info});
+
+  final Map<String, dynamic> info;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = info['role'] as String;
+    final isImpostor = role == 'impostor';
+    final word = info['word'] as String?;
+    final hint = info['hint'] as String;
+    final category = info['category'] as String;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: isImpostor ? const Color(0xFF2A1037) : const Color(0xFF0D2034),
+        border: Border.all(
+          color: isImpostor
+              ? const Color(0xFFF01FFF).withValues(alpha: 0.4)
+              : const Color(0xFF07FCFE).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isImpostor ? Icons.security_rounded : Icons.person_rounded,
+                color: isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isImpostor ? 'TU ROL: IMPOSTOR' : 'TU ROL: CIVIL',
+                style: TextStyle(
+                  color: isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (!isImpostor) ...[
+            const Text('PALABRA SECRETA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+            Text(word ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+          ] else ...[
+            const Text('CATEGORÍA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+            Text(category, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text('PISTA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+            Text(hint, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ],
+        ],
       ),
     );
   }

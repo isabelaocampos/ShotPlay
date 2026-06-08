@@ -5,6 +5,7 @@ import 'package:shotplay_app/src/features/game_board/domain/entities/board_entit
 import 'package:shotplay_app/src/features/game_board/domain/entities/challenge_card.dart';
 import 'package:shotplay_app/src/features/game_board/domain/entities/trap_state.dart';
 import 'package:shotplay_app/src/features/game_board/domain/game_board_event_types.dart';
+import 'package:shotplay_app/src/features/impostor/domain/entities/impostor_entities.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_roll_event_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/start_game_usecase.dart';
@@ -21,10 +22,13 @@ import 'package:shotplay_app/src/features/session/domain/usecases/update_room_st
 enum GameBoardStatus { waiting, playing, finished }
 
 class GameBoardController extends ChangeNotifier {
+  static const int _questionDurationSeconds = 45;
+
   GameBoardController({
     required GameEventRepository gameEvents,
     required this.currentUserId,
     required this.isAdmin,
+    required this.isImpostorGame,
     required List<RoomPlayer> players,
     required this.roomId,
     required this.roomCode,
@@ -55,9 +59,12 @@ class GameBoardController extends ChangeNotifier {
 
   final int roomId;
   final String roomCode;
+  final bool isImpostorGame;
 
   StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
+  Timer? _questionPhaseTimer;
   Set<String> _disconnectedPlayerIds = <String>{};
+  bool _questionPhaseTransitionSent = false;
 
   final String currentUserId;
   final bool isAdmin;
@@ -98,6 +105,8 @@ class GameBoardController extends ChangeNotifier {
       _status == GameBoardStatus.playing &&
       !_isRolling &&
       _pendingChallenge == null;
+
+  QuestionPhaseState? get questionPhase => _gameState?.questionPhase;
 
   PlayerPosition? get myPosition =>
       _gameState?.positions
@@ -178,11 +187,16 @@ class GameBoardController extends ChangeNotifier {
   Future<void> startGame() async {
     if (!isAdmin) return;
     try {
-      final state = await _startGame.execute(_players);
+      final phase = _buildInitialQuestionPhase();
+      final state = await _startGame.execute(
+        _players,
+        questionPhase: phase,
+      );
       _gameState = state;
       _status = GameBoardStatus.playing;
       await _updateRoomStatus.execute(roomId, RoomLifecycleStatus.inProgress);
       await _persistState(state);
+      _syncQuestionPhaseTimer();
       notifyListeners();
       debugPrint('[GAME_STATE] Game started and persisted');
     } catch (e) {
@@ -199,6 +213,7 @@ class GameBoardController extends ChangeNotifier {
       if (state.positions.any((p) => p.square >= 49)) {
         _status = GameBoardStatus.finished;
       }
+      _syncQuestionPhaseTimer();
       notifyListeners();
       debugPrint('[GAME_STATE] Restored persisted game state');
     } catch (e) {
@@ -804,11 +819,31 @@ class GameBoardController extends ChangeNotifier {
           _status = GameBoardStatus.finished;
         }
         _isRolling = false;
+        _syncQuestionPhaseTimer();
         unawaited(_persistState(state));
         notifyListeners();
         debugPrint('[GAME_STATE] Synced from server');
       } catch (e) {
         debugPrint('[BOARD] failed to parse gameStart event: $e');
+      }
+      return;
+    }
+
+    if (type == GameBoardEventTypes.phaseUpdated) {
+      try {
+        final state = GameState.fromJson(event);
+        _gameState = state;
+        _status = GameBoardStatus.playing;
+        if (state.positions.any((p) => p.square >= 49)) {
+          _status = GameBoardStatus.finished;
+        }
+        _isRolling = false;
+        _syncQuestionPhaseTimer();
+        unawaited(_persistState(state));
+        notifyListeners();
+        debugPrint('[GAME_STATE] Question phase updated from server');
+      } catch (e) {
+        debugPrint('[BOARD] failed to parse phaseUpdated event: $e');
       }
       return;
     }
@@ -825,6 +860,7 @@ class GameBoardController extends ChangeNotifier {
             _status = GameBoardStatus.finished;
           }
           _isRolling = false;
+          _syncQuestionPhaseTimer();
           notifyListeners();
         }
       } catch (e) {
@@ -839,6 +875,7 @@ class GameBoardController extends ChangeNotifier {
 
     if (type == GameBoardEventTypes.gameVictory) {
       _status = GameBoardStatus.finished;
+      _syncQuestionPhaseTimer();
       notifyListeners();
       return;
     }
@@ -933,13 +970,84 @@ class GameBoardController extends ChangeNotifier {
       _status = GameBoardStatus.finished;
     }
 
+    _syncQuestionPhaseTimer();
+
     _isRolling = false;
     notifyListeners();
+  }
+
+  QuestionPhaseState? _buildInitialQuestionPhase() {
+    if (!isImpostorGame) return null;
+
+    return QuestionPhaseState(
+      phase: QuestionPhaseType.pregunta,
+      roundStartTimeUtc: DateTime.now().toUtc(),
+      durationSeconds: _questionDurationSeconds,
+      roundNumber: 1,
+      alivePlayerIds: _players.map((player) => player.userId).toList(),
+    );
+  }
+
+  void _syncQuestionPhaseTimer() {
+    _questionPhaseTimer?.cancel();
+    _questionPhaseTimer = null;
+
+    final phase = _gameState?.questionPhase;
+    if (phase == null || phase.isVoting) {
+      _questionPhaseTransitionSent = false;
+      return;
+    }
+
+    _questionPhaseTransitionSent = false;
+    _questionPhaseTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final activePhase = _gameState?.questionPhase;
+      if (activePhase == null || activePhase.isVoting) {
+        _syncQuestionPhaseTimer();
+        return;
+      }
+
+      if (activePhase.remainingSeconds <= 0) {
+        if (isAdmin) {
+          unawaited(_advanceToVotingPhase());
+        } else {
+          notifyListeners();
+        }
+        return;
+      }
+
+      notifyListeners();
+    });
+  }
+
+  Future<void> _advanceToVotingPhase() async {
+    final currentPhase = _gameState?.questionPhase;
+    if (currentPhase == null || currentPhase.isVoting || _questionPhaseTransitionSent) {
+      return;
+    }
+
+    _questionPhaseTransitionSent = true;
+    final updatedState = _gameState!.copyWith(
+      questionPhase: currentPhase.asVoting(),
+    );
+    _gameState = updatedState;
+    _syncQuestionPhaseTimer();
+    notifyListeners();
+
+    try {
+      await _gameEvents.emitEvent({
+        'appEventType': GameBoardEventTypes.phaseUpdated,
+        ...updatedState.toJson(),
+      });
+      await _persistState(updatedState);
+    } catch (e) {
+      debugPrint('[BOARD] advanceToVotingPhase error: $e');
+    }
   }
 
   @override
   void dispose() {
     _eventsSubscription?.cancel();
+    _questionPhaseTimer?.cancel();
     _pendingChallenge = null;
     _pendingSpecialCell = null;
     super.dispose();

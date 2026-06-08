@@ -164,15 +164,8 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
         ),
       ),
       bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: 1,
-        onHomeTap: () {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            AppRoutes.gameCatalog,
-            (route) => false,
-          );
-        },
+        currentIndex: 0,
         onGamesTap: () {},
-        onSocialTap: () {},
         onProfileTap: () {},
       ),
     );

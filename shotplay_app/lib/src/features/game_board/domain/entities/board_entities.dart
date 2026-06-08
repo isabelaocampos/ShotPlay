@@ -5,6 +5,7 @@ export '../enums/special_cell_type.dart';
 
 export 'trap_state.dart';
 import 'trap_state.dart';
+import 'package:shotplay_app/src/features/impostor/domain/entities/impostor_entities.dart';
 
 /// Represents the type of a board cell with its colour group.
 enum CellType {
@@ -139,6 +140,7 @@ class GameState {
     required this.shotsTakenByCurrentPlayer,
     required this.isStarted,
     required this.activeTraps,
+    this.questionPhase,
     this.lastMovedPlayerId = '',
     this.lastEventLog = '',
     this.silentPlayerId = '',
@@ -151,6 +153,7 @@ class GameState {
   final int shotsTakenByCurrentPlayer;
   final bool isStarted;
   final List<TrapState> activeTraps;
+  final QuestionPhaseState? questionPhase;
 
   /// ID of the player who last rolled the dice (differs from
   /// [currentTurnPlayerId] once the turn has advanced).
@@ -173,6 +176,7 @@ class GameState {
     int? shotsTakenByCurrentPlayer,
     bool? isStarted,
     List<TrapState>? activeTraps,
+    QuestionPhaseState? questionPhase,
     String? lastMovedPlayerId,
     String? lastEventLog,
     String? silentPlayerId,
@@ -186,6 +190,7 @@ class GameState {
           shotsTakenByCurrentPlayer ?? this.shotsTakenByCurrentPlayer,
       isStarted: isStarted ?? this.isStarted,
       activeTraps: activeTraps ?? this.activeTraps,
+      questionPhase: questionPhase ?? this.questionPhase,
       lastMovedPlayerId: lastMovedPlayerId ?? this.lastMovedPlayerId,
       lastEventLog: lastEventLog ?? this.lastEventLog,
       silentPlayerId: silentPlayerId ?? this.silentPlayerId,
@@ -295,6 +300,7 @@ class GameState {
         'shotsTakenByCurrentPlayer': shotsTakenByCurrentPlayer,
         'isStarted': isStarted,
         'activeTraps': activeTraps.map((trap) => trap.toJson()).toList(),
+        'questionPhase': questionPhase?.toJson(),
         'lastMovedPlayerId': lastMovedPlayerId,
         'lastEventLog': lastEventLog,
         'silentPlayerId': silentPlayerId,
@@ -321,6 +327,11 @@ class GameState {
       activeTraps: ((json['activeTraps'] as List<dynamic>?) ?? [])
           .map((e) => TrapState.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
+      questionPhase: json['questionPhase'] is Map<String, dynamic>
+          ? QuestionPhaseState.fromJson(
+              Map<String, dynamic>.from(json['questionPhase'] as Map),
+            )
+          : null,
       lastMovedPlayerId: json['lastMovedPlayerId'] as String? ?? '',
       lastEventLog: json['lastEventLog'] as String? ?? '',
       silentPlayerId: json['silentPlayerId'] as String? ?? '',
@@ -335,6 +346,7 @@ class GameState {
         shotsTakenByCurrentPlayer: 0,
         isStarted: true,
         activeTraps: const [],
+        questionPhase: null,
         lastMovedPlayerId: '',
         lastEventLog: '',
         silentPlayerId: '',
