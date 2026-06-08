@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shotplay_app/src/domain/entities/room_entry_destination.dart';
 import 'package:shotplay_app/src/domain/entities/room_entry_result.dart';
 import 'package:shotplay_app/src/domain/repositories/room_repository.dart';
 import 'package:shotplay_app/src/domain/repositories/game_event_repository.dart';
@@ -122,7 +121,7 @@ class EnterCodeBloc extends Bloc<EnterCodeEvent, EnterCodeState> {
         expectedGameId: event.expectedGameId,
       );
 
-      if (result.destination == RoomEntryDestination.gameBoard) {
+      if (result.destination.requiresRealtimeChannel) {
         debugPrint('[RECONNECT] Room status=in_progress');
         await _ensureChannelConnected.execute(result.room.roomCode);
       }

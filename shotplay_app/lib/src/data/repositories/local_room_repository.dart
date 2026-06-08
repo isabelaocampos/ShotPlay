@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/constants/room_code_constants.dart';
 import '../../domain/constants/participation_statuses.dart';
+import '../../core/routing/game_route_resolver.dart';
+import '../../domain/entities/lobby_settings.dart';
 import '../../domain/entities/room_entry_destination.dart';
 import '../../domain/entities/room_entry_result.dart';
 import '../../domain/entities/room_lifecycle_status.dart';
@@ -25,6 +27,8 @@ class LocalRoomRepository implements RoomRepository {
       <String, StreamController<List<RoomPlayer>>>{};
   static final Map<int, RoomLifecycleStatus> _roomStatuses =
       <int, RoomLifecycleStatus>{};
+  static final Map<int, LobbySettings> _lobbySettingsByRoomId =
+      <int, LobbySettings>{};
 
   @override
   Future<RoomSession> createRoom({
@@ -43,6 +47,7 @@ class LocalRoomRepository implements RoomRepository {
     const localAdminId = 'local-admin';
     final idRoom = _nextRoomId++;
 
+    final lobbySettings = LobbySettings.forGame(gameId);
     final room = RoomSession(
       idRoom: idRoom,
       roomCode: normalizedCode,
@@ -52,9 +57,11 @@ class LocalRoomRepository implements RoomRepository {
       roomName: roomName,
       isPrivate: isPrivate,
       status: RoomLifecycleStatus.waiting,
+      lobbySettings: lobbySettings,
     );
 
     _rooms[normalizedCode] = room;
+    _lobbySettingsByRoomId[idRoom] = lobbySettings;
     _roomStatuses[idRoom] = RoomLifecycleStatus.waiting;
     _players[normalizedCode] = <RoomPlayer>[
       RoomPlayer(
@@ -142,6 +149,8 @@ class LocalRoomRepository implements RoomRepository {
       roomName: room.roomName,
       isPrivate: room.isPrivate,
       status: status,
+      lobbySettings:
+          _lobbySettingsByRoomId[room.idRoom] ?? room.lobbySettings,
     );
 
     final persisted = status == RoomLifecycleStatus.inProgress
@@ -151,7 +160,7 @@ class LocalRoomRepository implements RoomRepository {
     return RoomEntryResult(
       room: session,
       destination: status == RoomLifecycleStatus.inProgress
-          ? RoomEntryDestination.gameBoard
+          ? GameRouteResolver.activeGameDestination(session)
           : RoomEntryDestination.waitingRoom,
       players: List<RoomPlayer>.unmodifiable(players),
       isReconnect: isReconnect,
@@ -207,6 +216,7 @@ class LocalRoomRepository implements RoomRepository {
     _rooms.remove(normalizedCode);
     _players.remove(normalizedCode);
     _roomStatuses.remove(roomId);
+    _lobbySettingsByRoomId.remove(roomId);
     await _controllers[normalizedCode]?.close();
     _controllers.remove(normalizedCode);
   }
@@ -216,16 +226,7 @@ class LocalRoomRepository implements RoomRepository {
     _roomStatuses[roomId] = status;
     for (final entry in _rooms.entries) {
       if (entry.value.idRoom == roomId) {
-        _rooms[entry.key] = RoomSession(
-          idRoom: entry.value.idRoom,
-          roomCode: entry.value.roomCode,
-          adminId: entry.value.adminId,
-          gameId: entry.value.gameId,
-          maxPlayers: entry.value.maxPlayers,
-          roomName: entry.value.roomName,
-          isPrivate: entry.value.isPrivate,
-          status: status,
-        );
+        _rooms[entry.key] = entry.value.copyWith(status: status);
         break;
       }
     }
@@ -263,6 +264,23 @@ class LocalRoomRepository implements RoomRepository {
       _emit(entry.key);
       return;
     }
+  }
+
+  @override
+  Future<LobbySettings> fetchLobbySettings(int roomId) async {
+    return _lobbySettingsByRoomId[roomId] ?? LobbySettings.empty;
+  }
+
+  @override
+  Future<void> updateLobbySettings(int roomId, LobbySettings settings) async {
+    _lobbySettingsByRoomId[roomId] = settings;
+    for (final entry in _rooms.entries) {
+      if (entry.value.idRoom == roomId) {
+        _rooms[entry.key] = entry.value.copyWith(lobbySettings: settings);
+        break;
+      }
+    }
+    debugPrint('[ROOM] Lobby settings updated (local) for room $roomId');
   }
 
   void _emit(String roomCode) {

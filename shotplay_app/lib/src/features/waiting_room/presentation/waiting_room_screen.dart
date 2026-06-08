@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../common_widgets/app_bottom_navigation_bar.dart';
 import '../../../common_widgets/primary_button.dart';
-import '../../../core/routing/app_routes.dart';
+import '../../../core/routing/game_navigator.dart';
 import '../../../core/ui/game_option_ui.dart';
 import '../../../domain/entities/game_option.dart';
 import '../../../domain/entities/room_lifecycle_status.dart';
@@ -15,7 +15,11 @@ import '../../../domain/repositories/room_repository.dart';
 import '../domain/usecases/connect_room_game_events_usecase.dart';
 import '../domain/usecases/disconnect_room_game_events_usecase.dart';
 import '../domain/usecases/emit_game_start_usecase.dart';
+import '../domain/usecases/emit_lobby_settings_updated_usecase.dart';
 import '../domain/usecases/emit_lobby_sync_usecase.dart';
+import '../domain/usecases/fetch_lobby_settings_usecase.dart';
+import '../domain/usecases/update_lobby_settings_usecase.dart';
+import 'widgets/impostor_lobby_settings_card.dart';
 import '../domain/usecases/fetch_room_players_usecase.dart';
 import '../domain/usecases/watch_game_events_usecase.dart';
 import '../domain/usecases/leave_room_usecase.dart';
@@ -47,7 +51,10 @@ class WaitingRoomScreen extends StatelessWidget {
           disconnectGameEvents: DisconnectRoomGameEventsUsecase(gameEvents),
           watchGameEvents: WatchGameEventsUsecase(gameEvents),
           fetchRoomPlayers: FetchRoomPlayersUsecase(roomRepo),
+          fetchLobbySettings: FetchLobbySettingsUsecase(roomRepo),
+          updateLobbySettings: UpdateLobbySettingsUsecase(roomRepo),
           emitLobbySync: EmitLobbySyncUsecase(gameEvents),
+          emitLobbySettingsUpdated: EmitLobbySettingsUpdatedUsecase(gameEvents),
           emitGameStart: EmitGameStartUsecase(gameEvents),
           leaveRoom: LeaveRoomUsecase(roomRepo),
           closeRoom: CloseRoomUsecase(roomRepo),
@@ -56,6 +63,8 @@ class WaitingRoomScreen extends StatelessWidget {
         )..start(
             roomCode: room.roomCode,
             roomId: room.idRoom,
+            gameId: room.gameId,
+            initialSettings: room.lobbySettings,
             roomStatus: room.status,
           );
       },
@@ -89,15 +98,11 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
     controller.markAsNavigatingToBoard();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final isImpostorGame = gameOptionFromDbId(widget.room.gameId).id == 'impostor';
-
-      Navigator.of(context).pushReplacementNamed(
-        isImpostorGame ? AppRoutes.impostorReveal : AppRoutes.gameBoard,
-        arguments: {
-          'room': widget.room,
-          'players': controller.players,
-          'isAdmin': widget.isAdmin,
-        },
+      GameNavigator.pushReplacementGame(
+        context: context,
+        room: widget.room.copyWith(lobbySettings: controller.lobbySettings),
+        players: controller.players,
+        isAdmin: widget.isAdmin,
       );
     });
   }
@@ -167,14 +172,19 @@ class _WaitingRoomViewState extends State<_WaitingRoomView> {
                   total: widget.room.maxPlayers,
                   hostAccent: game.accentColor,
                 ),
+                const SizedBox(height: 16),
+                ImpostorLobbySettingsCard(
+                  controller: controller,
+                  isAdmin: widget.isAdmin,
+                  game: game,
+                ),
                 const SizedBox(height: 18),
                 _TipsCard(),
                 const SizedBox(height: 18),
                 if (widget.isAdmin)
                   PrimaryButton(
                     label: 'INICIAR PARTIDA',
-                    // Solo activo con >= 2 jugadores
-                    onPressed: controller.players.length >= 2
+                    onPressed: controller.canStartGame
                         ? () => _startGame(controller)
                         : null,
                   )

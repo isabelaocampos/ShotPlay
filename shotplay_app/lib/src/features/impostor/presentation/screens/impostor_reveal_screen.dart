@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shotplay_app/src/core/routing/app_routes.dart';
+import 'package:shotplay_app/src/core/routing/game_navigator.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/domain/entities/room_player.dart';
 import 'package:shotplay_app/src/domain/entities/room_session.dart';
@@ -71,7 +71,12 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
         _bloc.add(
           StartRoleDistribution(
             playerIds: widget.players.map((player) => player.userId).toList(),
+            impostorCount: widget.room.lobbySettings.impostor.impostorCount,
           ),
+        );
+        debugPrint(
+          '[IMPOSTOR] Distributing roles with '
+          '${widget.room.lobbySettings.impostor.impostorCount} impostor(s)',
         );
       }
     });
@@ -88,21 +93,19 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
     _navigated = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(
-        AppRoutes.gameBoard,
-        arguments: <String, dynamic>{
-          'room': widget.room,
-          'players': widget.players,
-          'isAdmin': widget.isAdmin,
-          'isReconnect': widget.isReconnect,
-          'persistedGameState': widget.persistedGameState,
-          'impostorInfo': {
-            'role': state.role.name,
-            'word': state.word,
-            'hint': state.hint,
-            'category': state.category,
-            'globalImpostorId': state.globalImpostorId,
-          },
+      GameNavigator.pushImpostorPlayPhase(
+        context: context,
+        room: widget.room,
+        players: widget.players,
+        isAdmin: widget.isAdmin,
+        isReconnect: widget.isReconnect,
+        persistedGameState: widget.persistedGameState,
+        impostorInfo: <String, dynamic>{
+          'role': state.role.name,
+          'word': state.word,
+          'hint': state.hint,
+          'category': state.category,
+          'globalImpostorId': state.globalImpostorId,
         },
       );
     });

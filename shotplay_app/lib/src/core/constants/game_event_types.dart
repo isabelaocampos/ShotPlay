@@ -16,6 +16,9 @@ class GameEventTypes {
   /// Un jugador volvió a conectarse.
   static const String playerReconnected = 'lobby.player_reconnected';
 
+  /// El host actualizó la configuración del lobby.
+  static const String lobbySettingsUpdated = 'lobby.settings_updated';
+
   /// El admin distribuyó los roles del Modo Impostor.
   static const String impostorRolesAssigned = 'impostor.roles_assigned';
   /// El jugador confirmó la pantalla de revelación.
@@ -31,8 +34,14 @@ class GameEventTypes {
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';
 
-  /// Un jugador tiró el dado; payload contiene el nuevo GameState.
+  /// Jugador tiró el dado — sync incremental antes de resolver el turno.
+  static const String diceRolled = 'game.dice_rolled';
+
+  /// Turno resuelto; payload contiene el GameState autoritativo final.
   static const String diceRoll = 'game.dice_roll';
+
+  /// Alias semántico para fin de turno (mismo wire que [diceRoll]).
+  static const String turnCompleted = 'game.dice_roll';
 
   /// Sync general del tablero.
   static const String gameSync = 'game.sync';

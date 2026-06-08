@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/resources/app_images.dart';
+import '../../core/routing/game_mode.dart';
 
 class GameOption {
   const GameOption({
@@ -53,10 +56,31 @@ GameOption gameOptionFromId(String id) {
 }
 
 GameOption gameOptionFromDbId(int gameDbId) {
-  return defaultGameOptions.firstWhere(
-    (game) => game.gameDbId == gameDbId,
-    orElse: () => defaultGameOptions.first,
+  for (final game in defaultGameOptions) {
+    if (game.gameDbId == gameDbId) {
+      return game;
+    }
+  }
+
+  debugPrint(
+    '[GAME_MODE] No catalog entry for game_id=$gameDbId — '
+    'verify DB values match GameOption.gameDbId (1=snakes, 2=impostor)',
   );
+  return defaultGameOptions.first;
+}
+
+GameMode gameModeFromDbId(int gameDbId) {
+  for (final game in defaultGameOptions) {
+    if (game.gameDbId == gameDbId) {
+      switch (game.id) {
+        case 'snakes_ladders':
+          return GameMode.snakesLadders;
+        case 'impostor':
+          return GameMode.impostor;
+      }
+    }
+  }
+  return GameMode.unknown;
 }
 
 const defaultGameOptions = <GameOption>[

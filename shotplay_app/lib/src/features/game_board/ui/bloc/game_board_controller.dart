@@ -6,6 +6,7 @@ import 'package:shotplay_app/src/features/game_board/domain/entities/challenge_c
 import 'package:shotplay_app/src/features/game_board/domain/entities/trap_state.dart';
 import 'package:shotplay_app/src/features/game_board/domain/game_board_event_types.dart';
 import 'package:shotplay_app/src/features/impostor/domain/entities/impostor_entities.dart';
+import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_rolled_event_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/emit_dice_roll_event_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/roll_dice_usecase.dart';
 import 'package:shotplay_app/src/features/game_board/domain/usecases/start_game_usecase.dart';
@@ -38,6 +39,7 @@ class GameBoardController extends ChangeNotifier {
   })  : _gameEvents = gameEvents,
         _startGame = StartGameUsecase(gameEvents),
         _rollDice = RollDiceUsecase(),
+        _emitDiceRolled = EmitDiceRolledEventUsecase(gameEvents),
         _emitEvent = EmitDiceRollEventUsecase(gameEvents),
         _watchEvents = WatchGameBoardEventsUsecase(gameEvents),
         _saveGameState = saveGameState,
@@ -50,6 +52,7 @@ class GameBoardController extends ChangeNotifier {
   final GameEventRepository _gameEvents;
   final StartGameUsecase _startGame;
   final RollDiceUsecase _rollDice;
+  final EmitDiceRolledEventUsecase _emitDiceRolled;
   final EmitDiceRollEventUsecase _emitEvent;
   final WatchGameBoardEventsUsecase _watchEvents;
   final SaveGameStateUsecase _saveGameState;
@@ -85,9 +88,11 @@ class GameBoardController extends ChangeNotifier {
   TrapState? _pendingTrapState;
   bool _pendingTrapTriggered = false;
 
-  // True when the challenge path pre-animated locally; tells
-  // _animateStateTransition to skip the dice+step animation (already seen).
-  bool _localAnimDone = false;
+  bool _skipNextDiceRolledEcho = false;
+  bool _skipNextTurnCompletedEcho = false;
+  bool _isAnimatingTurnProgress = false;
+  String? _turnProgressPlayerId;
+  int? _turnProgressRawSquare;
 
   GameBoardStatus get status => _status;
   GameState? get gameState => _gameState;
@@ -249,22 +254,29 @@ class GameBoardController extends ChangeNotifier {
 
     try {
       final diceValue = _rollDice.execute();
+      final moverId = _gameState!.currentTurnPlayerId;
+      final fromSquare = _gameState!.positions
+          .firstWhere((p) => p.playerId == moverId)
+          .square;
       final rawSquare = _gameState!.rawSquareForCurrentPlayer(diceValue);
       final challenge = PenaltyChallenge.forSquare(rawSquare);
       final specialCell = BoardDefinition.specialCellFor(rawSquare);
       final trap = _gameState!.trapAt(rawSquare);
 
+      debugPrint('[TURN] Player $moverId rolled $diceValue');
+      await _broadcastAndAnimateDiceRoll(
+        playerId: moverId,
+        diceValue: diceValue,
+        fromSquare: fromSquare,
+        rawSquare: rawSquare,
+      );
+
       if (challenge != null) {
-        // Show dice + token animation before presenting the challenge dialog.
-        await _animateLocalMove(diceValue, rawSquare);
-        _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingChallenge = challenge;
         _isRolling = false;
         notifyListeners();
       } else if (trap != null) {
-        await _animateLocalMove(diceValue, rawSquare);
-        _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingSpecialCell = SpecialCell(
           square: rawSquare,
@@ -275,8 +287,6 @@ class GameBoardController extends ChangeNotifier {
         _isRolling = false;
         notifyListeners();
       } else if (specialCell != null) {
-        await _animateLocalMove(diceValue, rawSquare);
-        _localAnimDone = true;
         _pendingDiceValue = diceValue;
         _pendingSpecialCell = specialCell;
         _pendingChallengeCard = switch (specialCell.type) {
@@ -627,30 +637,102 @@ class GameBoardController extends ChangeNotifier {
 
   // ── Private helpers ─────────────────────────────────────────────
 
-  /// Plays the dice dialog and step-by-step token movement locally for the
-  /// rolling player BEFORE showing the penalty challenge dialog.
-  /// Does NOT emit anything to Supabase.
-  Future<void> _animateLocalMove(int diceValue, int rawSquare) async {
+  /// Emits incremental dice-roll sync, then animates on the rolling client.
+  Future<void> _broadcastAndAnimateDiceRoll({
+    required String playerId,
+    required int diceValue,
+    required int fromSquare,
+    required int rawSquare,
+  }) async {
+    _turnProgressPlayerId = playerId;
+    _turnProgressRawSquare = rawSquare;
+    _skipNextDiceRolledEcho = true;
+
+    await _emitDiceRolled.execute(
+      playerId: playerId,
+      diceValue: diceValue,
+      fromSquare: fromSquare,
+      rawSquare: rawSquare,
+    );
+
+    await _runTurnProgressAnimation(
+      playerId: playerId,
+      diceValue: diceValue,
+      fromSquare: fromSquare,
+      rawSquare: rawSquare,
+    );
+  }
+
+  /// Dice dialog + step movement. Updates positions without advancing turn.
+  Future<void> _runTurnProgressAnimation({
+    required String playerId,
+    required int diceValue,
+    required int fromSquare,
+    required int rawSquare,
+  }) async {
+    if (_gameState == null || _isAnimatingTurnProgress) return;
+
+    _isAnimatingTurnProgress = true;
+    debugPrint(
+      '[ANIMATION] Animating movement $fromSquare -> $rawSquare '
+      '(player=$playerId)',
+    );
+
     _animatingDiceValue = diceValue;
     notifyListeners();
-    await Future.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(seconds: 2));
     _animatingDiceValue = null;
     notifyListeners();
 
-    final startSquare = _gameState!.positions
-        .firstWhere((p) => p.playerId == currentUserId)
-        .square;
+    final steps = diceValue.clamp(0, 49 - fromSquare);
+    for (var step = 1; step <= steps; step++) {
+      final square = (fromSquare + step).clamp(1, 49);
+      if (square > rawSquare) break;
 
-    for (int step = 1; step <= diceValue; step++) {
-      final s = startSquare + step;
-      if (s > 49) break;
       final temp = List<PlayerPosition>.from(_gameState!.positions);
-      final idx = temp.indexWhere((p) => p.playerId == currentUserId);
-      temp[idx] = temp[idx].copyWith(square: s);
-      _gameState = _gameState!.copyWith(positions: temp);
+      final idx = temp.indexWhere((p) => p.playerId == playerId);
+      if (idx < 0) break;
+
+      final previousSquare = temp[idx].square;
+      temp[idx] = temp[idx].copyWith(square: square);
+      _gameState = _gameState!.copyWith(
+        positions: temp,
+        lastDiceValue: diceValue,
+        lastMovedPlayerId: playerId,
+      );
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 300));
+      debugPrint(
+        '[GAME_STATE] Position updated: $previousSquare -> $square',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     }
+
+    _isAnimatingTurnProgress = false;
+  }
+
+  Future<void> _handleRemoteDiceRolled(Map<String, dynamic> payload) async {
+    if (_gameState == null || isImpostorGame) return;
+
+    final playerId = payload['playerId'] as String? ?? '';
+    final diceValue = (payload['diceValue'] as num?)?.toInt() ?? 0;
+    final fromSquare = (payload['fromSquare'] as num?)?.toInt() ?? 1;
+    final rawSquare = (payload['rawSquare'] as num?)?.toInt() ?? fromSquare;
+
+    debugPrint('[PUBSUB] Remote client received movement update');
+    _turnProgressPlayerId = playerId;
+    _turnProgressRawSquare = rawSquare;
+    _isRolling = true;
+    notifyListeners();
+
+    await _runTurnProgressAnimation(
+      playerId: playerId,
+      diceValue: diceValue,
+      fromSquare: fromSquare,
+      rawSquare: rawSquare,
+    );
+
+    _isRolling = false;
+    notifyListeners();
   }
 
   String _buildChallengeLog(PenaltyChallenge challenge, bool accepted) {
@@ -700,7 +782,6 @@ class GameBoardController extends ChangeNotifier {
     final diceValue = _pendingDiceValue;
     _pendingSpecialCell = null;
     _pendingDiceValue = 0;
-    _localAnimDone = true;
     _isRolling = true;
     notifyListeners();
 
@@ -741,6 +822,20 @@ class GameBoardController extends ChangeNotifier {
     if (eventLog.isNotEmpty) {
       newState = newState.copyWith(lastEventLog: eventLog);
     }
+
+    debugPrint('[TURN] Turn completed');
+    _skipNextTurnCompletedEcho = true;
+    _gameState = newState;
+    _turnProgressPlayerId = null;
+    _turnProgressRawSquare = null;
+    _isRolling = false;
+    _status = GameBoardStatus.playing;
+    if (newState.positions.any((p) => p.square >= 49)) {
+      _status = GameBoardStatus.finished;
+    }
+    _syncQuestionPhaseTimer();
+    notifyListeners();
+
     await _emitEvent.execute(newState);
     await _persistState(newState);
 
@@ -859,11 +954,34 @@ class GameBoardController extends ChangeNotifier {
       return;
     }
 
+    if (type == GameBoardEventTypes.diceRolled) {
+      final payload = event['payload'];
+      if (payload is! Map<String, dynamic>) return;
+
+      final playerId = payload['playerId'] as String? ?? '';
+      if (_skipNextDiceRolledEcho && playerId == currentUserId) {
+        _skipNextDiceRolledEcho = false;
+        debugPrint('[ANIMATION] Skipping local dice_rolled echo');
+        return;
+      }
+
+      unawaited(_handleRemoteDiceRolled(payload));
+      return;
+    }
+
     if (type == GameBoardEventTypes.diceRoll) {
       try {
         final state = GameState.fromJson(event);
+        final moverId = state.lastMovedPlayerId;
+
+        if (_skipNextTurnCompletedEcho && moverId == currentUserId) {
+          _skipNextTurnCompletedEcho = false;
+          debugPrint('[SYNC] Skipping local turn_completed echo');
+          return;
+        }
+
         if (_gameState != null) {
-          _animateStateTransition(state);
+          unawaited(_applyTurnCompleted(state));
         } else {
           _gameState = state;
           _status = GameBoardStatus.playing;
@@ -878,10 +996,6 @@ class GameBoardController extends ChangeNotifier {
         debugPrint('[BOARD] failed to parse diceRoll event: $e');
       }
       return;
-    }
-
-    if (_pendingSpecialCell != null && type == GameBoardEventTypes.diceRoll) {
-      // Special cell resolution is local, so remote broadcasts already carry the final state.
     }
 
     if (type == GameBoardEventTypes.gameVictory) {
@@ -905,84 +1019,72 @@ class GameBoardController extends ChangeNotifier {
     }
   }
 
-  Future<void> _animateStateTransition(GameState targetState) async {
-    _isRolling = true;
-    notifyListeners();
+  /// Applies authoritative end-of-turn state after incremental dice_rolled sync.
+  Future<void> _applyTurnCompleted(GameState targetState) async {
+    if (_gameState == null) return;
 
-    final prevPositions = _gameState!.positions;
-    final nextPositions = targetState.positions;
+    final moverId = targetState.lastMovedPlayerId.isNotEmpty
+        ? targetState.lastMovedPlayerId
+        : _turnProgressPlayerId ?? targetState.currentTurnPlayerId;
 
-    PlayerPosition? prevMover;
-    PlayerPosition? nextMover;
+    final nextMover = targetState.positions
+        .where((p) => p.playerId == moverId)
+        .firstOrNull;
+    final currentMover = _gameState!.positions
+        .where((p) => p.playerId == moverId)
+        .firstOrNull;
 
-    for (int i = 0; i < prevPositions.length; i++) {
-      if (prevPositions[i].square != nextPositions[i].square) {
-        prevMover = prevPositions[i];
-        nextMover = nextPositions[i];
-        break;
+    final incrementalSyncDone = _turnProgressPlayerId == moverId &&
+        currentMover != null &&
+        _turnProgressRawSquare != null &&
+        currentMover.square == _turnProgressRawSquare;
+
+    if (incrementalSyncDone &&
+        nextMover != null &&
+        nextMover.square != currentMover.square) {
+      debugPrint(
+        '[ANIMATION] Snake/ladder transition '
+        '${currentMover.square} -> ${nextMover.square}',
+      );
+      final temp = List<PlayerPosition>.from(_gameState!.positions);
+      final idx = temp.indexWhere((p) => p.playerId == moverId);
+      if (idx >= 0) {
+        temp[idx] = temp[idx].copyWith(square: nextMover.square);
+        _gameState = _gameState!.copyWith(positions: temp);
+        notifyListeners();
+        await Future<void>.delayed(const Duration(milliseconds: 600));
       }
-    }
-
-    final diceValue = targetState.lastDiceValue;
-
-    if (_localAnimDone) {
-      // Rolling player already saw dice dialog + step-by-step locally.
-      // Only pause for the snake/ladder jump if the position changed.
-      _localAnimDone = false;
-      if (prevMover != null &&
-          nextMover != null &&
-          prevMover.square != nextMover.square) {
-        await Future.delayed(const Duration(milliseconds: 600));
-      }
-    } else {
-      // Normal path: show dice dialog then step-by-step animation.
-      _animatingDiceValue = diceValue;
-      notifyListeners();
-
-      await Future.delayed(const Duration(seconds: 2));
-
-      _animatingDiceValue = null;
-      notifyListeners();
-
-      if (prevMover != null &&
-          nextMover != null &&
-          diceValue > 0 &&
-          prevMover.playerId == nextMover.playerId &&
-          prevMover.square != nextMover.square) {
-        int steps = diceValue;
-        int logicTarget = prevMover.square + steps;
-        if (logicTarget > 49) logicTarget = 49;
-
-        for (int step = 1; step <= steps; step++) {
-          int s = prevMover.square + step;
-          if (s > 49) break;
-
-          final tempPositions = List<PlayerPosition>.from(_gameState!.positions);
-          final idx = tempPositions.indexWhere(
-            (p) => p.playerId == prevMover!.playerId,
-          );
-          tempPositions[idx] = tempPositions[idx].copyWith(square: s);
-
-          _gameState = _gameState!.copyWith(positions: tempPositions);
+    } else if (!incrementalSyncDone) {
+      final fromSquare = currentMover?.square ?? 1;
+      final rawSquare = _turnProgressRawSquare ??
+          (fromSquare + targetState.lastDiceValue).clamp(1, 49);
+      await _runTurnProgressAnimation(
+        playerId: moverId,
+        diceValue: targetState.lastDiceValue,
+        fromSquare: fromSquare,
+        rawSquare: rawSquare,
+      );
+      if (nextMover != null && nextMover.square != rawSquare) {
+        final temp = List<PlayerPosition>.from(_gameState!.positions);
+        final idx = temp.indexWhere((p) => p.playerId == moverId);
+        if (idx >= 0) {
+          temp[idx] = temp[idx].copyWith(square: nextMover.square);
+          _gameState = _gameState!.copyWith(positions: temp);
           notifyListeners();
-          await Future.delayed(const Duration(milliseconds: 300));
-        }
-
-        // Snake/ladder jump — pause so the player sees the intermediate pos.
-        if (logicTarget != nextMover.square) {
-          await Future.delayed(const Duration(milliseconds: 600));
+          await Future<void>.delayed(const Duration(milliseconds: 600));
         }
       }
     }
 
+    debugPrint('[GAME_STATE] Turn completed — applying authoritative state');
     _gameState = targetState;
+    _turnProgressPlayerId = null;
+    _turnProgressRawSquare = null;
     _status = GameBoardStatus.playing;
     if (targetState.positions.any((p) => p.square >= 49)) {
       _status = GameBoardStatus.finished;
     }
-
     _syncQuestionPhaseTimer();
-
     _isRolling = false;
     notifyListeners();
   }

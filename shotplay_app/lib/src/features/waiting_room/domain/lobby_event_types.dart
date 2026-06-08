@@ -6,4 +6,5 @@ class LobbyEventTypes {
 
   static const String sync = GameEventTypes.lobbySync;
   static const String closed = GameEventTypes.lobbyClosed;
+  static const String settingsUpdated = GameEventTypes.lobbySettingsUpdated;
 }

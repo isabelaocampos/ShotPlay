@@ -1,3 +1,4 @@
+import '../entities/lobby_settings.dart';
 import '../entities/room_entry_result.dart';
 import '../entities/room_lifecycle_status.dart';
 import '../entities/room_player.dart';
@@ -33,6 +34,12 @@ abstract class RoomRepository {
   Future<void> markParticipationActive(int roomId);
 
   Future<void> markParticipationDisconnected(int roomId);
+
+  /// Reads persisted lobby configuration (source of truth for reconnects).
+  Future<LobbySettings> fetchLobbySettings(int roomId);
+
+  /// Host-only while room is waiting. Persists to DB.
+  Future<void> updateLobbySettings(int roomId, LobbySettings settings);
 }
 
 class RoomCodeCollisionException implements Exception {}

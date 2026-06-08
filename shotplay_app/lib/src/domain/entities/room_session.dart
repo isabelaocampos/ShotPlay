@@ -1,3 +1,4 @@
+import 'lobby_settings.dart';
 import 'room_lifecycle_status.dart';
 
 class RoomSession {
@@ -10,6 +11,7 @@ class RoomSession {
     this.roomName,
     this.isPrivate = false,
     this.status = RoomLifecycleStatus.waiting,
+    this.lobbySettings = LobbySettings.empty,
   });
 
   final int idRoom;
@@ -20,6 +22,7 @@ class RoomSession {
   final String? roomName;
   final bool isPrivate;
   final RoomLifecycleStatus status;
+  final LobbySettings lobbySettings;
 
   factory RoomSession.fromMap(Map<String, dynamic> map) {
     return RoomSession(
@@ -29,6 +32,33 @@ class RoomSession {
       gameId: (map['game_id'] as num).toInt(),
       maxPlayers: (map['custom_max_players'] as num?)?.toInt() ?? 0,
       status: RoomLifecycleStatus.fromDb(map['status'] as String?),
+      lobbySettings: LobbySettings.fromJson(
+        map['lobby_settings'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  RoomSession copyWith({
+    int? idRoom,
+    String? roomCode,
+    String? adminId,
+    int? gameId,
+    int? maxPlayers,
+    String? roomName,
+    bool? isPrivate,
+    RoomLifecycleStatus? status,
+    LobbySettings? lobbySettings,
+  }) {
+    return RoomSession(
+      idRoom: idRoom ?? this.idRoom,
+      roomCode: roomCode ?? this.roomCode,
+      adminId: adminId ?? this.adminId,
+      gameId: gameId ?? this.gameId,
+      maxPlayers: maxPlayers ?? this.maxPlayers,
+      roomName: roomName ?? this.roomName,
+      isPrivate: isPrivate ?? this.isPrivate,
+      status: status ?? this.status,
+      lobbySettings: lobbySettings ?? this.lobbySettings,
     );
   }
 }

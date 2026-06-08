@@ -30,6 +30,18 @@ class CreateRoomController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   RoomSession? get createdRoom => _createdRoom;
 
+  /// Visual hint for the room name field — not a prefilled value.
+  String get suggestedRoomNameHint {
+    switch (selectedGame.id) {
+      case 'snakes_ladders':
+        return 'Snake Arena';
+      case 'impostor':
+        return 'Sala del Impostor';
+      default:
+        return 'Mi sala';
+    }
+  }
+
   void initialize(GameOption initialGame) {
     if (_isInitialized) {
       return;
@@ -95,6 +107,10 @@ class CreateRoomController extends ChangeNotifier {
         final roomCode = RoomCodeGenerator.generate();
 
         try {
+          debugPrint(
+            '[GAME_MODE] Selected: ${selectedGame.id} '
+            '(game_id=${selectedGame.gameDbId})',
+          );
           final room = await _createRoomUsecase.execute(
             roomCode: roomCode,
             gameId: selectedGame.gameDbId,

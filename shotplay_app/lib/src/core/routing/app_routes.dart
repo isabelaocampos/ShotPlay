@@ -12,6 +12,12 @@ class AppRoutes {
   static const String gameDetails = '/game-details';
   static const String configureRoom = '/configure-room';
   static const String waitingRoom = '/waiting-room';
+
+  /// Per-game entry routes (use [GameRouteResolver] to pick the right one).
+  static const String snakesGame = '/snakes-game';
+  static const String impostorGame = '/impostor-game';
+
+  /// Internal gameplay route used by impostor post-reveal transitions.
+  /// Prefer [snakesGame] / [impostorGame] for external navigation.
   static const String gameBoard = '/game-board';
-  static const String impostorReveal = '/impostor-reveal';
 }

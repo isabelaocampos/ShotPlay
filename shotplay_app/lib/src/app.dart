@@ -20,7 +20,9 @@ import 'features/create_room/presentation/create_room_controller.dart';
 import 'features/create_room/presentation/create_room_screen.dart';
 import 'features/game_catalog/presentation/game_catalog_controller.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
-import 'features/impostor/presentation/screens/impostor_reveal_screen.dart';
+import 'core/routing/game_navigation_args.dart';
+import 'features/impostor/presentation/screens/impostor_game_screen.dart';
+import 'features/snakes/presentation/screens/snakes_game_screen.dart';
 import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
 import 'features/profile/data/repository/profile_repository_impl.dart';
@@ -110,18 +112,36 @@ class ShotPlayApp extends StatelessWidget {
                 settings: settings,
                 builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
               );
-                case AppRoutes.impostorReveal:
-                  final args = settings.arguments as Map<String, dynamic>;
-                  return MaterialPageRoute<void>(
-                    settings: settings,
-                    builder: (_) => ImpostorRevealScreen(
-                      room: args['room'] as RoomSession,
-                      players: (args['players'] as List<dynamic>).cast<RoomPlayer>(),
-                      isAdmin: args['isAdmin'] as bool,
-                      isReconnect: args['isReconnect'] as bool? ?? false,
-                      persistedGameState: args['persistedGameState'] as Map<String, dynamic>?,
-                    ),
-                  );
+            case AppRoutes.snakesGame:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => SnakesGameScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
+                ),
+              );
+            case AppRoutes.impostorGame:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ImpostorGameScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
+                  impostorInfo: args.impostorInfo,
+                  phase: args.impostorPhase,
+                ),
+              );
             case AppRoutes.gameBoard:
               final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute<void>(

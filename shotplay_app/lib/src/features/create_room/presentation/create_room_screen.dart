@@ -24,7 +24,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   @override
   void initState() {
     super.initState();
-    _roomNameController = TextEditingController(text: 'Ej: Los Guerreros del Cubalibre');
+    _roomNameController = TextEditingController();
     _controller = context.read<CreateRoomController>();
     _controller.addListener(_handleControllerUpdate);
 
@@ -138,9 +138,13 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _roomNameController,
-                  decoration: const InputDecoration(
-                    hintText: 'Ej: Los Guerreros del Cubalibre',
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: controller.suggestedRoomNameHint,
                   ),
+                  onTap: () {
+                    debugPrint('[ROOM_NAME] Field focused');
+                  },
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(

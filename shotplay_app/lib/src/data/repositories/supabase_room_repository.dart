@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/room_code_constants.dart';
 import '../../domain/constants/participation_statuses.dart';
+import '../../core/routing/game_route_resolver.dart';
+import '../../domain/entities/lobby_settings.dart';
 import '../../domain/entities/room_entry_destination.dart';
 import '../../domain/entities/room_entry_result.dart';
 import '../../domain/entities/room_lifecycle_status.dart';
@@ -31,6 +33,8 @@ class SupabaseRoomRepository implements RoomRepository {
     }
     final adminId = user.id;
 
+    final initialSettings = LobbySettings.forGame(gameId);
+
     try {
       final response = await _client
           .from('room')
@@ -40,20 +44,29 @@ class SupabaseRoomRepository implements RoomRepository {
             'game_id': gameId,
             'custom_max_players': maxPlayers,
             'status': RoomLifecycleStatus.waiting.toDb(),
+            'lobby_settings': initialSettings.toJson(),
           })
           .select()
           .single();
+
+      final persistedGameId = (response['game_id'] as num).toInt();
+      debugPrint(
+        '[ROOM] Created ${response['room_code']} game_id=$persistedGameId',
+      );
 
       final session = RoomSession(
         idRoom: (response['id_room'] as num).toInt(),
         roomCode: response['room_code'] as String,
         adminId: response['admin_id'] as String,
-        gameId: (response['game_id'] as num).toInt(),
+        gameId: persistedGameId,
         maxPlayers: (response['custom_max_players'] as num?)?.toInt()
             ?? maxPlayers,
         roomName: roomName,
         isPrivate: isPrivate,
         status: RoomLifecycleStatus.fromDb(response['status'] as String?),
+        lobbySettings: LobbySettings.fromJson(
+          response['lobby_settings'] as Map<String, dynamic>?,
+        ),
       );
 
       await _client.from('participation').insert(<String, dynamic>{
@@ -211,7 +224,7 @@ class SupabaseRoomRepository implements RoomRepository {
       case RoomLifecycleStatus.waiting:
         return RoomEntryDestination.waitingRoom;
       case RoomLifecycleStatus.inProgress:
-        return RoomEntryDestination.gameBoard;
+        return GameRouteResolver.activeGameDestination(session);
       case RoomLifecycleStatus.finished:
         return RoomEntryDestination.roomFinished;
     }
@@ -428,6 +441,59 @@ class SupabaseRoomRepository implements RoomRepository {
     } catch (e) {
       debugPrint('[PARTICIPANTS] Profile batch fetch failed: $e');
       return <String, String>{};
+    }
+  }
+
+  @override
+  Future<LobbySettings> fetchLobbySettings(int roomId) async {
+    try {
+      final row = await _client
+          .from('room')
+          .select('lobby_settings')
+          .eq('id_room', roomId)
+          .maybeSingle();
+
+      if (row == null) {
+        return LobbySettings.empty;
+      }
+
+      return LobbySettings.fromJson(
+        row['lobby_settings'] as Map<String, dynamic>?,
+      );
+    } on PostgrestException catch (error) {
+      throw RoomRepositoryException(
+        error.message.isNotEmpty
+            ? error.message
+            : 'No se pudieron cargar los ajustes del lobby.',
+      );
+    }
+  }
+
+  @override
+  Future<void> updateLobbySettings(int roomId, LobbySettings settings) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw NotAuthenticatedException();
+    }
+
+    try {
+      await _client
+          .from('room')
+          .update(<String, dynamic>{
+            'lobby_settings': settings.toJson(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id_room', roomId)
+          .eq('admin_id', user.id)
+          .eq('status', RoomLifecycleStatus.waiting.toDb());
+
+      debugPrint('[ROOM] Lobby settings updated for room $roomId');
+    } on PostgrestException catch (error) {
+      throw RoomRepositoryException(
+        error.message.isNotEmpty
+            ? error.message
+            : 'No se pudieron guardar los ajustes del lobby.',
+      );
     }
   }
 

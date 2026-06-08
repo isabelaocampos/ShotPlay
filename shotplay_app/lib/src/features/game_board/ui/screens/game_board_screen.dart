@@ -7,7 +7,7 @@ import '../../../../domain/entities/room_session.dart';
 import '../../../../core/session/room_session_lifecycle_scope.dart';
 import '../../../../domain/repositories/game_event_repository.dart';
 import '../../../../domain/repositories/game_session_repository.dart';
-import '../../../../domain/entities/game_option.dart';
+import '../../../../core/routing/game_route_resolver.dart';
 import '../../../../domain/repositories/room_repository.dart';
 import '../../../../core/routing/app_routes.dart';
 import '../../../session/domain/usecases/save_game_state_usecase.dart';
@@ -57,7 +57,8 @@ class GameBoardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUserId = safeCurrentUserId() ?? '';
-    final isImpostorGame = gameOptionFromDbId(room.gameId).id == 'impostor';
+    final isImpostorGame =
+        GameRouteResolver.resolveMode(room.gameId).catalogId == 'impostor';
 
     return ChangeNotifierProvider<GameBoardController>(
       create: (ctx) {
