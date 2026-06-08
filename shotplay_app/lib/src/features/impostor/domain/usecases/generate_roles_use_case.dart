@@ -4,6 +4,8 @@ import '../repositories/impostor_word_repository.dart';
 
 class GenerateRolesUseCase {
   final ImpostorWordRepository repository;
+  
+  static final List<String> _usedWords = [];
 
   GenerateRolesUseCase(this.repository);
 
@@ -17,7 +19,17 @@ class GenerateRolesUseCase {
 
     // 1. Obtener palabra aleatoria
     final category = await repository.getRandomCategory();
-    final wordObj = category.words[Random().nextInt(category.words.length)];
+    
+    // Filtrar palabras ya usadas
+    var availableWords = category.words.where((w) => !_usedWords.contains(w.word)).toList();
+    if (availableWords.isEmpty) {
+      // Si se acabaron las palabras de esta categoría, reiniciamos el historial de usadas para permitir repetir
+      _usedWords.removeWhere((used) => category.words.any((w) => w.word == used));
+      availableWords = category.words;
+    }
+    
+    final wordObj = availableWords[Random().nextInt(availableWords.length)];
+    _usedWords.add(wordObj.word);
 
     // 2. Seleccionar índices para impostores
     final random = Random();

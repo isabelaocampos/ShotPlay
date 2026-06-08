@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/routing/app_routes.dart';
 import '../../../../domain/entities/room_player.dart';
 import '../impostor_bloc.dart';
 import '../impostor_event.dart';
@@ -123,7 +124,7 @@ class ImpostorResultsModal extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              if (isHost)
+              if (isHost) ...[
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -132,18 +133,43 @@ class ImpostorResultsModal extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                   onPressed: () {
-                    context.read<ImpostorBloc>().add(const RestartImpostorGame());
-                    // Cerramos todo y volvemos al lobby (el non-host volverá porque escucha el evento impostorGameRestarted)
-                    Navigator.of(context).popUntil((route) => route.settings.name == '/home' || route.isFirst);
+                    context.read<ImpostorBloc>().add(const NextRoundImpostorGame());
+                    // Cerramos el modal. La navegación la hace GameBoardScreen.
+                    Navigator.of(context).pop();
                   },
-                  child: const Text('Jugar Otra Vez', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                )
-              else
+                  child: const Text('Siguiente Ronda', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () async {
+                    context.read<ImpostorBloc>().add(const RestartImpostorGame());
+                    // Esperar un momento para asegurar que el evento se envíe antes de desmontar el Bloc
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!context.mounted) return;
+                    Navigator.of(context).popUntil((route) => route.settings.name == AppRoutes.waitingRoom || route.isFirst);
+                  },
+                  child: const Text('Abandonar y Cerrar Partida', style: TextStyle(color: Colors.white70)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.settings.name == AppRoutes.waitingRoom || route.isFirst);
+                  },
+                  child: const Text('Solo Abandonar', style: TextStyle(color: Colors.white70)),
+                ),
+              ] else ...[
                 const Text(
-                  'Esperando a que el anfitrión inicie otra partida...',
+                  'Esperando a que el anfitrión inicie otra ronda...',
                   style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.settings.name == AppRoutes.waitingRoom || route.isFirst);
+                  },
+                  child: const Text('Salir al Lobby', style: TextStyle(color: Colors.white70)),
+                ),
+              ],
             ],
           ),
         ),

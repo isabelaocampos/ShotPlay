@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
@@ -66,6 +68,27 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      
+      if (widget.isReconnect) {
+        _navigated = true;
+        // Intentar recuperar el rol local
+        _recoverLocalRole().then((info) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacementNamed(
+            AppRoutes.gameBoard,
+            arguments: <String, dynamic>{
+              'room': widget.room,
+              'players': widget.players,
+              'isAdmin': widget.isAdmin,
+              'isReconnect': widget.isReconnect,
+              'persistedGameState': widget.persistedGameState,
+              'impostorInfo': info,
+            },
+          );
+        });
+        return;
+      }
+
       if (widget.isAdmin && !_revealRequested) {
         _revealRequested = true;
         _bloc.add(
@@ -81,6 +104,24 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
   void dispose() {
     _bloc.close();
     super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _recoverLocalRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString('impostor_role_${widget.room.idRoom}');
+      if (data != null) {
+        return jsonDecode(data);
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return {
+      'role': 'civil',
+      'word': '???',
+      'hint': 'Reconectado sin datos',
+      'category': 'Desconocida',
+    };
   }
 
   void _continueToBoard(ImpostorRoleAssigned state) {

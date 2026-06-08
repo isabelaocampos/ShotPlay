@@ -163,6 +163,21 @@ class _GameBoardViewState extends State<_GameBoardView> {
       return;
     }
 
+    if (_controller!.nextRoundStarted) {
+      // Remover _controller listener para evitar llamadas dobles
+      _controller!.removeListener(_onControllerChange);
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.impostorReveal,
+        arguments: {
+          'room': widget.room,
+          'players': widget.players,
+          'isAdmin': widget.isAdmin,
+        },
+      );
+      return;
+    }
+
     if (_controller!.status == GameBoardStatus.finished &&
         !_winnerDialogShown) {
       _winnerDialogShown = true;
