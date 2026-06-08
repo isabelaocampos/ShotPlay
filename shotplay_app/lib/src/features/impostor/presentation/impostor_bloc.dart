@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shotplay_app/src/core/constants/game_event_types.dart';
 import 'package:shotplay_app/src/domain/repositories/game_event_repository.dart';
@@ -50,6 +52,7 @@ class ImpostorBloc extends Bloc<ImpostorEvent, ImpostorState> {
     on<SubmitVote>(_onSubmitVote);
     on<OnVotesUpdated>(_onVotesUpdated);
     on<RestartImpostorGame>(_onRestartGame);
+    on<NextRoundImpostorGame>(_onNextRoundGame);
     on<StartVotingPhase>(_onStartVotingPhase);
 
     // Iniciar la escucha de eventos en tiempo real inmediatamente
@@ -92,7 +95,7 @@ class ImpostorBloc extends Bloc<ImpostorEvent, ImpostorState> {
   void _onDataReceived(
     OnImpostorDataReceived event,
     Emitter<ImpostorState> emit,
-  ) {
+  ) async {
     final List? players = event.payload['players'];
     if (players == null) return;
 
@@ -109,7 +112,7 @@ class ImpostorBloc extends Bloc<ImpostorEvent, ImpostorState> {
     );
 
     if (myData != null) {
-      emit(ImpostorRoleAssigned(
+      final state = ImpostorRoleAssigned(
         role: myData['role'] == PlayerRole.impostor.name 
             ? PlayerRole.impostor 
             : PlayerRole.civil,
@@ -117,7 +120,22 @@ class ImpostorBloc extends Bloc<ImpostorEvent, ImpostorState> {
         hint: myData['hint'] ?? '',
         category: myData['category'] ?? '',
         globalImpostorId: globalImpostor['playerId'],
-      ));
+      );
+      
+      // Guardar en almacenamiento local para reconexiones
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('impostor_role_$_roomId', jsonEncode({
+          'role': state.role.name,
+          'word': state.word,
+          'hint': state.hint,
+          'category': state.category,
+        }));
+      } catch (e) {
+        // Ignorar error de guardado
+      }
+      
+      emit(state);
     } else {
       emit(const ImpostorError("No se encontró información para tu usuario en esta partida."));
     }
@@ -202,6 +220,23 @@ class ImpostorBloc extends Bloc<ImpostorEvent, ImpostorState> {
     } catch (e) {
       if (!isClosed) {
         emit(ImpostorError("Error al reiniciar juego: ${e.toString()}"));
+      }
+    }
+  }
+
+  Future<void> _onNextRoundGame(
+    NextRoundImpostorGame event,
+    Emitter<ImpostorState> emit,
+  ) async {
+    try {
+      await _gameEventRepository.emitEvent({
+        'appEventType': GameEventTypes.impostorGameNextRound,
+        'roomId': _roomId,
+        'payload': {},
+      });
+    } catch (e) {
+      if (!isClosed) {
+        emit(ImpostorError("Error al iniciar siguiente ronda: ${e.toString()}"));
       }
     }
   }

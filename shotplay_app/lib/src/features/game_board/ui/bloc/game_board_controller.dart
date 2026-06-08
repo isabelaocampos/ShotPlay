@@ -76,6 +76,7 @@ class GameBoardController extends ChangeNotifier {
   GameState? _gameState;
   bool _isRolling = false;
   bool _gameRestarted = false;
+  bool _nextRoundStarted = false;
   int? _animatingDiceValue;
 
   // Pending penalty challenge waiting for the current player's response.
@@ -98,6 +99,7 @@ class GameBoardController extends ChangeNotifier {
   GameState? get gameState => _gameState;
   bool get isRolling => _isRolling;
   bool get gameRestarted => _gameRestarted;
+  bool get nextRoundStarted => _nextRoundStarted;
   int? get animatingDiceValue => _animatingDiceValue;
   PenaltyChallenge? get pendingChallenge => _pendingChallenge;
   SpecialCell? get pendingSpecialCell => _pendingSpecialCell;
@@ -905,6 +907,12 @@ class GameBoardController extends ChangeNotifier {
       if (isAdmin) {
         unawaited(_updateRoomStatus.execute(roomId, RoomLifecycleStatus.waiting));
       }
+      notifyListeners();
+      return;
+    }
+
+    if (type == GameEventTypes.impostorGameNextRound) {
+      _nextRoundStarted = true;
       notifyListeners();
       return;
     }

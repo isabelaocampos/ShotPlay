@@ -30,6 +30,9 @@ class GameEventTypes {
   /// El host reinicia la sala al terminar el modo impostor.
   static const String impostorGameRestarted = 'impostor.game_restarted';
   
+  /// El host inicia la siguiente ronda del modo impostor.
+  static const String impostorGameNextRound = 'impostor.game_next_round';
+  
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';

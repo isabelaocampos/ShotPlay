@@ -38,6 +38,10 @@ class RestartImpostorGame extends ImpostorEvent {
   const RestartImpostorGame();
 }
 
+class NextRoundImpostorGame extends ImpostorEvent {
+  const NextRoundImpostorGame();
+}
+
 class StartVotingPhase extends ImpostorEvent {
   final List<String> alivePlayerIds;
   final String impostorId;
