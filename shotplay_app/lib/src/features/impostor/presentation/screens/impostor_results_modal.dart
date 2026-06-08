@@ -49,9 +49,13 @@ class ImpostorResultsModal extends StatelessWidget {
     final isHost = localPlayer.isHost;
     final backgroundColor = impostorWon ? Colors.red[900]! : Colors.teal[900]!;
     final title = impostorWon ? "¡Victoria del Impostor!" : "¡Victoria Civil!";
+    
+    String formatName(String name) => name.contains('@') ? name.split('@')[0] : name;
+    
+    final impostorName = formatName(impostorPlayer.username);
     final subtitle = impostorWon 
-        ? "El impostor engañó a todos. Era ${impostorPlayer.username}."
-        : "¡El impostor fue descubierto! Era ${impostorPlayer.username}.";
+        ? "El impostor engañó a todos. Era $impostorName."
+        : "¡El impostor fue descubierto! Era $impostorName.";
 
     return PopScope(
       canPop: false,
@@ -101,8 +105,12 @@ class ImpostorResultsModal extends StatelessWidget {
                   itemCount: voteMap.entries.length,
                   itemBuilder: (ctx, index) {
                     final entry = voteMap.entries.elementAt(index);
-                    final voterName = roomPlayers.firstWhere((p) => p.userId == entry.key, orElse: () => impostorPlayer).username;
-                    final targetName = roomPlayers.firstWhere((p) => p.userId == entry.value, orElse: () => impostorPlayer).username;
+                    final voterRaw = roomPlayers.firstWhere((p) => p.userId == entry.key, orElse: () => impostorPlayer).username;
+                    final targetRaw = roomPlayers.firstWhere((p) => p.userId == entry.value, orElse: () => impostorPlayer).username;
+                    
+                    final voterName = formatName(voterRaw);
+                    final targetName = formatName(targetRaw);
+                    
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Text(

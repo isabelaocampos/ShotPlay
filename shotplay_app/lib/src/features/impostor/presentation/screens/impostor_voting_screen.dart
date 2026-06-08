@@ -196,6 +196,9 @@ class _PlayerVoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String formatName(String name) => name.contains('@') ? name.split('@')[0] : name;
+    final displayName = formatName(player.username);
+    
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -204,7 +207,7 @@ class _PlayerVoteCard extends StatelessWidget {
             backgroundColor: Colors.grey[900],
             title: const Text('Confirmar voto', style: TextStyle(color: Colors.white)),
             content: Text(
-              '¿Estás seguro de que deseas votar por ${player.username}?',
+              '¿Estás seguro de que deseas votar por $displayName?',
               style: const TextStyle(color: Colors.white70),
             ),
             actions: [
@@ -237,14 +240,14 @@ class _PlayerVoteCard extends StatelessWidget {
               backgroundImage: player.avatarUrl != null ? NetworkImage(player.avatarUrl!) : null,
               child: player.avatarUrl == null
                   ? Text(
-                      player.username.substring(0, 1).toUpperCase(),
+                      displayName.substring(0, 1).toUpperCase(),
                       style: const TextStyle(fontSize: 24, color: Colors.white),
                     )
                   : null,
             ),
             const SizedBox(height: 12),
             Text(
-              player.username,
+              displayName,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,

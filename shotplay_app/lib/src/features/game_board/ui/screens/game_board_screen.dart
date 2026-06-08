@@ -567,64 +567,104 @@ class _GameBoardViewState extends State<_GameBoardView> {
   }
 }
 
-class _ImpostorSecretCard extends StatelessWidget {
+class _ImpostorSecretCard extends StatefulWidget {
   const _ImpostorSecretCard({required this.info});
 
   final Map<String, dynamic> info;
 
   @override
-  Widget build(BuildContext context) {
-    final role = info['role'] as String;
-    final isImpostor = role == 'impostor';
-    final word = info['word'] as String?;
-    final hint = info['hint'] as String;
-    final category = info['category'] as String;
+  State<_ImpostorSecretCard> createState() => _ImpostorSecretCardState();
+}
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: isImpostor ? const Color(0xFF2A1037) : const Color(0xFF0D2034),
-        border: Border.all(
-          color: isImpostor
-              ? const Color(0xFFF01FFF).withValues(alpha: 0.4)
-              : const Color(0xFF07FCFE).withValues(alpha: 0.4),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isImpostor ? Icons.security_rounded : Icons.person_rounded,
-                color: isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isImpostor ? 'TU ROL: IMPOSTOR' : 'TU ROL: CIVIL',
-                style: TextStyle(
-                  color: isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+class _ImpostorSecretCardState extends State<_ImpostorSecretCard> {
+  bool _isRevealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = widget.info['role'] as String;
+    final isImpostor = role == 'impostor';
+    final word = widget.info['word'] as String?;
+    final hint = widget.info['hint'] as String;
+    final category = widget.info['category'] as String;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isRevealed = true),
+      onTapUp: (_) => setState(() => _isRevealed = false),
+      onTapCancel: () => setState(() => _isRevealed = false),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: !_isRevealed 
+              ? const Color(0xFF181124) 
+              : (isImpostor ? const Color(0xFF2A1037) : const Color(0xFF0D2034)),
+          border: Border.all(
+            color: !_isRevealed
+                ? const Color(0xFF07FCFE).withValues(alpha: 0.15)
+                : (isImpostor
+                    ? const Color(0xFFF01FFF).withValues(alpha: 0.4)
+                    : const Color(0xFF07FCFE).withValues(alpha: 0.4)),
           ),
-          const SizedBox(height: 12),
-          if (!isImpostor) ...[
-            const Text('PALABRA SECRETA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
-            Text(word ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-          ] else ...[
-            const Text('CATEGORÍA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
-            Text(category, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            const Text('PISTA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
-            Text(hint, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  !_isRevealed
+                      ? Icons.lock_outline_rounded
+                      : (isImpostor ? Icons.security_rounded : Icons.person_rounded),
+                  color: !_isRevealed
+                      ? Colors.white54
+                      : (isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4)),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  !_isRevealed
+                      ? 'TARJETA SECRETA'
+                      : (isImpostor ? 'TU ROL: IMPOSTOR' : 'TU ROL: CIVIL'),
+                  style: TextStyle(
+                    color: !_isRevealed
+                        ? Colors.white54
+                        : (isImpostor ? const Color(0xFFF9A8D4) : const Color(0xFF99F6E4)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  _isRevealed ? Icons.visibility : Icons.visibility_off,
+                  color: Colors.white54,
+                  size: 18,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (!_isRevealed)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Center(
+                  child: Text(
+                    'Mantén presionado para revelar',
+                    style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              )
+            else if (!isImpostor) ...[
+              const Text('PALABRA SECRETA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+              Text(word ?? '', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+            ] else ...[
+              const Text('CATEGORÍA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+              Text(category, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              const Text('PISTA', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800)),
+              Text(hint, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
