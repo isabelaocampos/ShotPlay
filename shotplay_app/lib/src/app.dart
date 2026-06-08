@@ -22,6 +22,7 @@ import 'features/game_catalog/presentation/game_catalog_controller.dart';
 import 'features/game_details/presentation/game_details_screen.dart';
 import 'core/routing/game_navigation_args.dart';
 import 'features/impostor/presentation/screens/impostor_game_screen.dart';
+import 'features/impostor/presentation/screens/impostor_reveal_screen.dart';
 import 'features/snakes/presentation/screens/snakes_game_screen.dart';
 import 'features/login/ui/bloc/login_bloc.dart';
 import 'features/login/ui/screens/login_screen.dart';
@@ -140,6 +141,20 @@ class ShotPlayApp extends StatelessWidget {
                   persistedGameState: args.persistedGameState,
                   impostorInfo: args.impostorInfo,
                   phase: args.impostorPhase,
+                ),
+              );
+            case AppRoutes.impostorReveal:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ImpostorRevealScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
                 ),
               );
             case AppRoutes.gameBoard:

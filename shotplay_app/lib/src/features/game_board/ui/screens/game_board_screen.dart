@@ -170,7 +170,7 @@ class _GameBoardViewState extends State<_GameBoardView> {
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.impostorReveal,
-        arguments: {
+        arguments: <String, dynamic>{
           'room': widget.room,
           'players': widget.players,
           'isAdmin': widget.isAdmin,

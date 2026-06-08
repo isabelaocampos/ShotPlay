@@ -17,6 +17,9 @@ class AppRoutes {
   static const String snakesGame = '/snakes-game';
   static const String impostorGame = '/impostor-game';
 
+  /// Impostor role-reveal phase (also reachable for next-round restarts).
+  static const String impostorReveal = '/impostor-reveal';
+
   /// Internal gameplay route used by impostor post-reveal transitions.
   /// Prefer [snakesGame] / [impostorGame] for external navigation.
   static const String gameBoard = '/game-board';

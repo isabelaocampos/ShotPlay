@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/core/routing/game_navigator.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/domain/entities/room_player.dart';
