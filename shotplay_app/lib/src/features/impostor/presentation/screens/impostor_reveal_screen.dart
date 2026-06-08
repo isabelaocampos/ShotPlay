@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shotplay_app/src/core/constants/game_event_types.dart';
 import 'package:shotplay_app/src/core/routing/app_routes.dart';
 import 'package:shotplay_app/src/core/utils/supabase_safe.dart';
 import 'package:shotplay_app/src/domain/entities/room_player.dart';
@@ -13,6 +12,9 @@ import 'package:shotplay_app/src/features/impostor/domain/usecases/generate_role
 import 'package:shotplay_app/src/features/impostor/presentation/impostor_bloc.dart';
 import 'package:shotplay_app/src/features/impostor/presentation/impostor_event.dart';
 import 'package:shotplay_app/src/features/impostor/presentation/impostor_state.dart';
+import 'package:shotplay_app/src/features/impostor/data/repositories/impostor_vote_repository_impl.dart';
+import 'package:shotplay_app/src/features/impostor/domain/usecases/emit_impostor_vote_usecase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ImpostorRevealScreen extends StatefulWidget {
   const ImpostorRevealScreen({
@@ -48,11 +50,17 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
 
     final gameEvents = context.read<GameEventRepository>();
     final currentUserId = safeCurrentUserId() ?? '';
+    final voteRepo = ImpostorVoteRepositoryImpl(supabase: Supabase.instance.client);
+    final emitVoteUseCase = EmitImpostorVoteUseCase(voteRepo);
+
     _bloc = ImpostorBloc(
       generateRolesUseCase: GenerateRolesUseCase(ImpostorWordRepositoryImpl()),
       emitRolesUseCase: EmitImpostorRolesUseCase(gameEvents),
       gameEventRepository: gameEvents,
+      voteRepository: voteRepo,
+      emitVoteUseCase: emitVoteUseCase,
       currentUserId: currentUserId,
+      roomId: widget.room.idRoom.toString(),
     );
     _distributionTriggered = true;
 
@@ -93,6 +101,7 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
             'word': state.word,
             'hint': state.hint,
             'category': state.category,
+            'globalImpostorId': state.globalImpostorId,
           },
         },
       );
@@ -242,7 +251,7 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
                                       child: showCardFace
                                           ? _RevealedCard(
                                               key: const ValueKey<String>('revelada'),
-                                              state: roleState!,
+                                              state: roleState,
                                             )
                                           : _HiddenCard(
                                               key: const ValueKey<String>('oculta'),
@@ -255,7 +264,7 @@ class _ImpostorRevealScreenState extends State<ImpostorRevealScreen> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: FilledButton(
-                                    onPressed: showCardFace ? () => _continueToBoard(roleState!) : null,
+                                    onPressed: showCardFace ? () => _continueToBoard(roleState) : null,
                                     style: FilledButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 16),
                                       backgroundColor: const Color(0xFFF01FFF),

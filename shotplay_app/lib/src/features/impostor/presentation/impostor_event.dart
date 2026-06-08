@@ -1,3 +1,5 @@
+import '../domain/entities/impostor_entities.dart';
+
 abstract class ImpostorEvent {
   const ImpostorEvent();
 }
@@ -16,6 +18,32 @@ class StartRoleDistribution extends ImpostorEvent {
 /// Evento interno disparado cuando llega el broadcast de Supabase.
 class OnImpostorDataReceived extends ImpostorEvent {
   final Map<String, dynamic> payload;
-// Movido a presentation/bloc/
+
   const OnImpostorDataReceived(this.payload);
+}
+
+class SubmitVote extends ImpostorEvent {
+  final String targetPlayerId;
+
+  const SubmitVote(this.targetPlayerId);
+}
+
+class OnVotesUpdated extends ImpostorEvent {
+  final List<ImpostorVote> votes;
+
+  const OnVotesUpdated(this.votes);
+}
+
+class RestartImpostorGame extends ImpostorEvent {
+  const RestartImpostorGame();
+}
+
+class StartVotingPhase extends ImpostorEvent {
+  final List<String> alivePlayerIds;
+  final String impostorId;
+
+  const StartVotingPhase({
+    required this.alivePlayerIds,
+    required this.impostorId,
+  });
 }

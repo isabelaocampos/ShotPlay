@@ -158,6 +158,11 @@ class _GameBoardViewState extends State<_GameBoardView> {
   void _onControllerChange() {
     if (!mounted) return;
 
+    if (_controller!.gameRestarted) {
+      _goToLobby();
+      return;
+    }
+
     if (_controller!.status == GameBoardStatus.finished &&
         !_winnerDialogShown) {
       _winnerDialogShown = true;
@@ -477,7 +482,10 @@ class _GameBoardViewState extends State<_GameBoardView> {
                         children: [
                           if (controller.isImpostorGame && gameState != null) ...[
                             QuestionPhasePanel(
-                              gameState: gameState,
+                              gameState: controller.gameState!,
+                              roomPlayers: widget.players,
+                              roomId: widget.room.idRoom.toString(),
+                              impostorInfo: widget.impostorInfo,
                             ),
                             const SizedBox(height: 20),
                             if (widget.impostorInfo != null)

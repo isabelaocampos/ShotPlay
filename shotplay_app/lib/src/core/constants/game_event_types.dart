@@ -23,6 +23,10 @@ class GameEventTypes {
 
   /// La fase de preguntas cambió y el temporizador se sincronizó.
   static const String impostorQuestionPhaseUpdated = 'impostor.question_phase_updated';
+
+  /// El host reinicia la sala al terminar el modo impostor.
+  static const String impostorGameRestarted = 'impostor.game_restarted';
+  
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';

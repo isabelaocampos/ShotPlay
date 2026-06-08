@@ -110,3 +110,81 @@ class QuestionPhaseState {
     );
   }
 }
+
+class ImpostorVote {
+  final String voterId;
+  final String targetId;
+
+  const ImpostorVote({required this.voterId, required this.targetId});
+
+  factory ImpostorVote.fromJson(Map<String, dynamic> json) {
+    return ImpostorVote(
+      voterId: json['voter_id'] as String,
+      targetId: json['target_id'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'voter_id': voterId,
+        'target_id': targetId,
+      };
+}
+
+class VerdictResult {
+  final bool impostorWon;
+  final String impostorId;
+  final Map<String, String> voteMap; // voterId -> targetId
+
+  const VerdictResult({
+    required this.impostorWon,
+    required this.impostorId,
+    required this.voteMap,
+  });
+}
+
+VerdictResult calculateVerdict(List<ImpostorVote> votes, String impostorId) {
+  final voteCounts = <String, int>{};
+  final voteMap = <String, String>{};
+
+  for (final vote in votes) {
+    voteMap[vote.voterId] = vote.targetId;
+    voteCounts[vote.targetId] = (voteCounts[vote.targetId] ?? 0) + 1;
+  }
+
+  if (voteCounts.isEmpty) {
+    return VerdictResult(impostorWon: true, impostorId: impostorId, voteMap: voteMap);
+  }
+
+  int maxVotes = 0;
+  for (final count in voteCounts.values) {
+    if (count > maxVotes) {
+      maxVotes = count;
+    }
+  }
+
+  final playersWithMaxVotes = voteCounts.entries
+      .where((e) => e.value == maxVotes)
+      .map((e) => e.key)
+      .toList();
+
+  bool impostorWon;
+  if (playersWithMaxVotes.length == 1) {
+    final eliminatedId = playersWithMaxVotes.first;
+    if (eliminatedId == impostorId) {
+      // Impostor was identified and eliminated
+      impostorWon = false;
+    } else {
+      // A civilian was eliminated
+      impostorWon = true;
+    }
+  } else {
+    // Business rule: Empate en votos: gana el impostor por supervivencia.
+    impostorWon = true;
+  }
+
+  return VerdictResult(
+    impostorWon: impostorWon,
+    impostorId: impostorId,
+    voteMap: voteMap,
+  );
+}

@@ -72,6 +72,7 @@ class GameBoardController extends ChangeNotifier {
   GameBoardStatus _status = GameBoardStatus.waiting;
   GameState? _gameState;
   bool _isRolling = false;
+  bool _gameRestarted = false;
   int? _animatingDiceValue;
 
   // Pending penalty challenge waiting for the current player's response.
@@ -91,6 +92,7 @@ class GameBoardController extends ChangeNotifier {
   GameBoardStatus get status => _status;
   GameState? get gameState => _gameState;
   bool get isRolling => _isRolling;
+  bool get gameRestarted => _gameRestarted;
   int? get animatingDiceValue => _animatingDiceValue;
   PenaltyChallenge? get pendingChallenge => _pendingChallenge;
   SpecialCell? get pendingSpecialCell => _pendingSpecialCell;
@@ -802,6 +804,15 @@ class GameBoardController extends ChangeNotifier {
 
   void _onEvent(Map<String, dynamic> event) {
     final type = event['appEventType'] as String?;
+
+    if (type == GameEventTypes.impostorGameRestarted) {
+      _gameRestarted = true;
+      if (isAdmin) {
+        unawaited(_updateRoomStatus.execute(roomId, RoomLifecycleStatus.waiting));
+      }
+      notifyListeners();
+      return;
+    }
 
     if (type == GameEventTypes.playerDisconnected ||
         type == GameEventTypes.playerReconnected ||

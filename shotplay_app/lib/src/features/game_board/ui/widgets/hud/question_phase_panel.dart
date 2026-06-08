@@ -3,15 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../domain/entities/board_entities.dart';
-import 'package:shotplay_app/src/features/impostor/domain/entities/impostor_entities.dart';
+import 'package:shotplay_app/src/features/impostor/presentation/screens/impostor_voting_screen.dart';
+import '../../../../../domain/entities/room_player.dart';
 
 class QuestionPhasePanel extends StatefulWidget {
   const QuestionPhasePanel({
     super.key,
     required this.gameState,
+    required this.roomPlayers,
+    required this.roomId,
+    required this.impostorInfo,
   });
 
   final GameState gameState;
+  final List<RoomPlayer> roomPlayers;
+  final String roomId;
+  final Map<String, dynamic>? impostorInfo;
 
   @override
   State<QuestionPhasePanel> createState() => _QuestionPhasePanelState();
@@ -230,6 +237,31 @@ class _QuestionPhasePanelState extends State<QuestionPhasePanel> {
                 return _AlivePlayerChip(player: player);
               }).toList(),
             ),
+          if (isVoting) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  final globalImpostorId = widget.impostorInfo?['globalImpostorId'] ?? '';
+                  Navigator.of(context).push(
+                    ImpostorVotingScreen.route(
+                      roomPlayers: widget.roomPlayers,
+                      alivePlayerIds: alivePlayers.map((e) => e.playerId).toList(),
+                      roomId: widget.roomId,
+                      impostorId: globalImpostorId,
+                    ),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFF01FFF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Ir a Votar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+          ],
         ],
       ),
     );
