@@ -34,5 +34,6 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/impostor/
     - assets/images/
     - .env

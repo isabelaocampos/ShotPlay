@@ -15,6 +15,9 @@ class GameEventTypes {
 
   /// Un jugador volvió a conectarse.
   static const String playerReconnected = 'lobby.player_reconnected';
+
+  /// El admin distribuyó los roles del Modo Impostor.
+  static const String impostorRolesAssigned = 'impostor.roles_assigned';
   // ── Game board ─────────────────────────────────────────────────
   /// El admin inició la partida; payload contiene el GameState inicial.
   static const String gameStart = 'game.start';

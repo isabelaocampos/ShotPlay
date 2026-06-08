@@ -1,0 +1,19 @@
+{
+  "categories": [
+    {
+      "name": "Animales",
+      "words": [
+        { "word": "León", "hint": "Un felino salvaje y majestuoso" },
+        { "word": "Elefante", "hint": "Tiene una memoria increíble y colmillos" },
+        { "word": "Tiburón", "hint": "Depredador marino muy temido" }
+      ]
+    },
+    {
+      "name": "Objetos",
+      "words": [
+        { "word": "Cámara", "hint": "Sirve para capturar momentos" },
+        { "word": "Reloj", "hint": "Se usa para medir el paso del tiempo" }
+      ]
+    }
+  ]
+}
