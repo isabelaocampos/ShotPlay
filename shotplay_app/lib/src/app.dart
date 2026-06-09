@@ -1,0 +1,182 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
+import 'package:shotplay_app/src/domain/entities/room_player.dart';
+import 'core/navigation/main_screen.dart';
+import 'core/routing/app_routes.dart';
+import 'core/theme/app_theme.dart';
+import 'core/utils/supabase_safe.dart';
+import 'domain/entities/game_option.dart';
+import 'domain/entities/room_session.dart';
+import 'domain/repositories/game_event_repository.dart';
+import 'domain/repositories/game_repository.dart';
+import 'domain/repositories/game_session_repository.dart';
+import 'domain/repositories/room_repository.dart';
+import 'features/auth/data/repository/auth_repo_impl.dart';
+import 'features/auth/domain/usecases/login_usecase.dart';
+import 'features/auth/domain/usecases/signup_usecase.dart';
+import 'features/auth/ui/screens/welcome_screen.dart';
+import 'features/create_room/presentation/create_room_controller.dart';
+import 'features/create_room/presentation/create_room_screen.dart';
+import 'features/game_catalog/presentation/game_catalog_controller.dart';
+import 'features/game_details/presentation/game_details_screen.dart';
+import 'core/routing/game_navigation_args.dart';
+import 'features/impostor/presentation/screens/impostor_game_screen.dart';
+import 'features/impostor/presentation/screens/impostor_reveal_screen.dart';
+import 'features/snakes/presentation/screens/snakes_game_screen.dart';
+import 'features/login/ui/bloc/login_bloc.dart';
+import 'features/login/ui/screens/login_screen.dart';
+import 'features/profile/data/repository/profile_repository_impl.dart';
+import 'features/profile/domain/repository/profile_repository.dart';
+import 'features/signup/ui/bloc/signup_bloc.dart';
+import 'features/signup/ui/screens/signup_screen.dart';
+import 'features/game_board/ui/screens/game_board_screen.dart';
+import 'features/waiting_room/presentation/waiting_room_screen.dart';
+
+class ShotPlayApp extends StatelessWidget {
+  const ShotPlayApp({
+    super.key,
+    required this.roomRepository,
+    required this.gameRepository,
+    required this.gameEventRepository,
+    required this.gameSessionRepository,
+  });
+
+  final RoomRepository roomRepository;
+  final GameRepository gameRepository;
+  final GameEventRepository gameEventRepository;
+  final GameSessionRepository gameSessionRepository;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        Provider<RoomRepository>.value(value: roomRepository),
+        Provider<GameEventRepository>.value(value: gameEventRepository),
+        Provider<GameSessionRepository>.value(value: gameSessionRepository),
+        Provider<ProfileRepository>(create: (_) => ProfileRepositoryImpl()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'ShotPlay',
+        theme: AppTheme.dark,
+        initialRoute: AppRoutes.welcome,
+        routes: {
+          AppRoutes.welcome: (_) => const WelcomeScreen(),
+          AppRoutes.login: (_) => BlocProvider(
+                create: (_) => LoginBloc(
+                  LoginUsecase(AuthRepoImpl()),
+                ),
+                child: LoginScreen(),
+              ),
+          AppRoutes.signup: (_) => BlocProvider(
+                create: (_) => SignupBloc(
+                  SignupUsecase(AuthRepoImpl(), ProfileRepositoryImpl()),
+                ),
+                child: const SignupScreen(),
+              ),
+          AppRoutes.home: (_) => ChangeNotifierProvider(
+                create: (_) =>
+                    GameCatalogController(gameRepository: gameRepository),
+                child: const MainScreen(),
+              ),
+          AppRoutes.gameCatalog: (_) => ChangeNotifierProvider(
+                create: (_) =>
+                    GameCatalogController(gameRepository: gameRepository),
+                child: const MainScreen(),
+              ),
+        },
+        onGenerateRoute: (settings) {
+          switch (settings.name) {
+            case AppRoutes.gameDetails:
+              final game = settings.arguments as GameOption;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => GameDetailsScreen(initialGame: game),
+              );
+            case AppRoutes.configureRoom:
+              final game = settings.arguments as GameOption;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ChangeNotifierProvider(
+                  create: (_) =>
+                      CreateRoomController(roomRepository: roomRepository),
+                  child: CreateRoomScreen(selectedGame: game),
+                ),
+              );
+            case AppRoutes.waitingRoom:
+              final room = settings.arguments as RoomSession;
+              final currentUserId = safeCurrentUserId();
+              final isAdmin =
+                  currentUserId != null && currentUserId == room.adminId;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => WaitingRoomScreen(room: room, isAdmin: isAdmin),
+              );
+            case AppRoutes.snakesGame:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => SnakesGameScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
+                ),
+              );
+            case AppRoutes.impostorGame:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ImpostorGameScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
+                  impostorInfo: args.impostorInfo,
+                  phase: args.impostorPhase,
+                ),
+              );
+            case AppRoutes.impostorReveal:
+              final args = GameNavigationArgs.fromMap(
+                settings.arguments as Map<String, dynamic>,
+              );
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => ImpostorRevealScreen(
+                  room: args.room,
+                  players: args.players,
+                  isAdmin: args.isAdmin,
+                  isReconnect: args.isReconnect,
+                  persistedGameState: args.persistedGameState,
+                ),
+              );
+            case AppRoutes.gameBoard:
+              final args = settings.arguments as Map<String, dynamic>;
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (_) => GameBoardScreen(
+                  room: args['room'] as RoomSession,
+                  players: (args['players'] as List<dynamic>)
+                      .cast<RoomPlayer>(),
+                  isAdmin: args['isAdmin'] as bool,
+                  isReconnect: args['isReconnect'] as bool? ?? false,
+                  persistedGameState: args['persistedGameState']
+                      as Map<String, dynamic>?,
+                  impostorInfo: args['impostorInfo'] as Map<String, dynamic>?,
+                ),
+              );
+            default:
+              return null;
+          }
+        },
+      ),
+    );
+  }
+}
